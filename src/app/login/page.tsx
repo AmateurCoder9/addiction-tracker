@@ -12,35 +12,39 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [guestLoading, setGuestLoading] = useState(false);
     const router = useRouter();
-    const supabase = createClient();
 
     async function handleLogin(e: React.FormEvent) {
         e.preventDefault();
         setError(null);
         setLoading(true);
 
-        const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-
-        if (authError) {
-            setError(authError.message);
+        try {
+            const supabase = createClient();
+            const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+            if (authError) { setError(authError.message); setLoading(false); return; }
+            router.push("/dashboard");
+            router.refresh();
+        } catch (err) {
+            console.error("Login error:", err);
+            setError("Connection failed. Please check your internet or try again later.");
             setLoading(false);
-            return;
         }
-
-        router.push("/dashboard");
-        router.refresh();
     }
 
     async function handleGuestMode() {
         setGuestLoading(true);
-        const { error: authError } = await supabase.auth.signInAnonymously();
-        if (authError) {
-            setError(authError.message);
+        setError(null);
+        try {
+            const supabase = createClient();
+            const { error: authError } = await supabase.auth.signInAnonymously();
+            if (authError) { setError(authError.message); setGuestLoading(false); return; }
+            router.push("/dashboard");
+            router.refresh();
+        } catch (err) {
+            console.error("Guest login error:", err);
+            setError("Connection failed. Please check your internet or try again later.");
             setGuestLoading(false);
-            return;
         }
-        router.push("/dashboard");
-        router.refresh();
     }
 
     return (

@@ -12,7 +12,6 @@ import { format } from "date-fns";
 import CalendarView from "@/components/calendar/CalendarView";
 import LogModal from "@/components/calendar/LogModal";
 import ProgressRing from "@/components/ui/ProgressRing";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import AddAddictionForm from "@/components/dashboard/AddAddictionForm";
 import BottomNav from "@/components/layout/BottomNav";
 import StatsCharts from "@/components/stats/StatsCharts";
@@ -32,6 +31,7 @@ export default function DashboardPage() {
     const [addictions, setAddictions] = useState<Addiction[]>([]);
     const [logsMap, setLogsMap] = useState<Record<string, Log[]>>({});
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [milestoneMessage, setMilestoneMessage] = useState<string | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
@@ -51,39 +51,41 @@ export default function DashboardPage() {
     useEffect(() => {
         let cancelled = false;
         const supabase = supabaseRef.current;
+        const timeout = setTimeout(() => {
+            if (!cancelled) { setLoading(false); setError("Connection timed out. Please refresh."); }
+        }, 15000);
 
         async function load() {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user || cancelled) { setLoading(false); return; }
+                const { data: { user }, error: userErr } = await supabase.auth.getUser();
+                if (userErr) { console.error("Auth error:", userErr); setError("Authentication error. Please log in again."); setLoading(false); clearTimeout(timeout); return; }
+                if (!user || cancelled) { setLoading(false); clearTimeout(timeout); return; }
 
                 const { data: addictionsData, error: addErr } = await supabase.from("addictions").select("*").eq("user_id", user.id).order("created_at", { ascending: true });
                 if (cancelled) return;
+                if (addErr) { console.error("Fetch addictions error:", addErr); setError("Could not load trackers: " + addErr.message); setLoading(false); clearTimeout(timeout); return; }
 
-                if (addErr) { console.error("addictions error:", addErr); setLoading(false); return; }
+                setAddictions(addictionsData || []);
+                if (addictionsData && addictionsData.length > 0) setSelectedTracker((prev) => prev ?? addictionsData[0].id);
 
-                if (addictionsData) {
-                    setAddictions(addictionsData);
-                    if (addictionsData.length > 0) setSelectedTracker((prev) => prev ?? addictionsData[0].id);
+                const { data: logsData, error: logErr } = await supabase.from("logs").select("*").eq("user_id", user.id).order("date", { ascending: true });
+                if (cancelled) return;
+                if (logErr) { console.error("Fetch logs error:", logErr); }
 
-                    const { data: logsData, error: logErr } = await supabase.from("logs").select("*").eq("user_id", user.id).order("date", { ascending: true });
-                    if (cancelled) return;
+                if (logsData) {
+                    const grouped: Record<string, Log[]> = {};
+                    for (const log of logsData) {
+                        if (!grouped[log.addiction_id]) grouped[log.addiction_id] = [];
+                        grouped[log.addiction_id].push(log);
+                    }
+                    setLogsMap(grouped);
 
-                    if (logErr) { console.error("logs error:", logErr); }
-
-                    if (logsData) {
-                        const grouped: Record<string, Log[]> = {};
-                        for (const log of logsData) {
-                            if (!grouped[log.addiction_id]) grouped[log.addiction_id] = [];
-                            grouped[log.addiction_id].push(log);
-                        }
-                        setLogsMap(grouped);
-
+                    if (addictionsData) {
                         for (const addiction of addictionsData) {
                             const streakData = calculateStreaks(grouped[addiction.id] || []);
                             if (isMilestoneStreak(streakData.currentStreak)) {
                                 setMilestoneMessage(getMilestoneMessage(streakData.currentStreak));
-                                fireConfetti();
+                                try { fireConfetti(); } catch (e) { console.error(e); }
                                 break;
                             }
                         }
@@ -91,12 +93,13 @@ export default function DashboardPage() {
                 }
             } catch (err) {
                 console.error("Dashboard load error:", err);
+                setError("Connection failed. Supabase may be down. Please refresh.");
             }
-            setLoading(false);
+            if (!cancelled) { setLoading(false); clearTimeout(timeout); }
         }
 
         load();
-        return () => { cancelled = true; };
+        return () => { cancelled = true; clearTimeout(timeout); };
     }, [refreshKey]);
 
     const handleNavigate = useCallback((section: string) => {
@@ -106,59 +109,70 @@ export default function DashboardPage() {
     }, []);
 
     async function handleAddAddiction(name: string) {
-        const supabase = supabaseRef.current;
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { error } = await supabase.from("addictions").insert({ user_id: user.id, name });
-        if (!error) setRefreshKey((k) => k + 1);
+        try {
+            const supabase = supabaseRef.current;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { error: err } = await supabase.from("addictions").insert({ user_id: user.id, name });
+            if (err) { setError("Failed to add: " + err.message); return; }
+            setRefreshKey((k) => k + 1);
+        } catch (e) { setError("Failed to add tracker."); console.error(e); }
     }
 
     async function handleDeleteAddiction(id: string) {
-        const supabase = supabaseRef.current;
-        setDeletingId(id);
-        await supabase.from("logs").delete().eq("addiction_id", id);
-        const { error } = await supabase.from("addictions").delete().eq("id", id);
-        if (!error) {
-            setAddictions((prev) => prev.filter((a) => a.id !== id));
-            setLogsMap((prev) => { const next = { ...prev }; delete next[id]; return next; });
-            if (selectedTracker === id) setSelectedTracker(addictions[0]?.id ?? null);
-        }
+        try {
+            const supabase = supabaseRef.current;
+            setDeletingId(id);
+            await supabase.from("logs").delete().eq("addiction_id", id);
+            const { error: err } = await supabase.from("addictions").delete().eq("id", id);
+            if (!err) {
+                setAddictions((prev) => prev.filter((a) => a.id !== id));
+                setLogsMap((prev) => { const next = { ...prev }; delete next[id]; return next; });
+                if (selectedTracker === id) setSelectedTracker(addictions[0]?.id ?? null);
+            }
+        } catch (e) { console.error(e); }
         setDeletingId(null);
     }
 
     async function handleQuickLog(status: "clean" | "relapse" | "partial", note: string, cost: number) {
         if (!quickLogId) return;
-        const supabase = supabaseRef.current;
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        try {
+            const supabase = supabaseRef.current;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
 
-        const todayStr = format(new Date(), "yyyy-MM-dd");
-        const existing = (logsMap[quickLogId] || []).find((l) => l.date === todayStr);
+            const todayStr = format(new Date(), "yyyy-MM-dd");
+            const existing = (logsMap[quickLogId] || []).find((l) => l.date === todayStr);
+            const logData: Record<string, unknown> = { status, note: note || null };
+            if (cost > 0) logData.cost = cost;
 
-        if (existing) {
-            await supabase.from("logs").update({ status, note: note || null, cost }).eq("id", existing.id);
-        } else {
-            await supabase.from("logs").insert({ user_id: user.id, addiction_id: quickLogId, date: todayStr, status, note: note || null, cost });
-        }
-
+            if (existing) {
+                await supabase.from("logs").update(logData).eq("id", existing.id);
+            } else {
+                await supabase.from("logs").insert({ user_id: user.id, addiction_id: quickLogId, date: todayStr, ...logData });
+            }
+        } catch (e) { console.error("Log error:", e); }
         setQuickLogId(null);
         setRefreshKey((k) => k + 1);
     }
 
     async function handleCalendarLog(date: string, status: "clean" | "relapse" | "partial", note: string, cost: number) {
         if (!selectedTracker) return;
-        const supabase = supabaseRef.current;
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        try {
+            const supabase = supabaseRef.current;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
 
-        const existing = (logsMap[selectedTracker] || []).find((l) => l.date === date);
+            const existing = (logsMap[selectedTracker] || []).find((l) => l.date === date);
+            const logData: Record<string, unknown> = { status, note: note || null };
+            if (cost > 0) logData.cost = cost;
 
-        if (existing) {
-            await supabase.from("logs").update({ status, note: note || null, cost }).eq("id", existing.id);
-        } else {
-            await supabase.from("logs").insert({ user_id: user.id, addiction_id: selectedTracker, date, status, note: note || null, cost });
-        }
-
+            if (existing) {
+                await supabase.from("logs").update(logData).eq("id", existing.id);
+            } else {
+                await supabase.from("logs").insert({ user_id: user.id, addiction_id: selectedTracker, date, ...logData });
+            }
+        } catch (e) { console.error("Calendar log error:", e); }
         setRefreshKey((k) => k + 1);
     }
 
@@ -170,13 +184,36 @@ export default function DashboardPage() {
     const currentYear = new Date().getFullYear();
     const greeting = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening";
 
-    if (loading) return <LoadingSpinner message="Loading..." />;
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+                <div className="w-5 h-5 border border-neutral-300 border-t-neutral-900 rounded-full animate-spin" />
+                <p className="mt-4 text-xs text-neutral-400">Loading...</p>
+                <button onClick={() => { setLoading(false); setError("Manually skipped loading."); }} className="mt-4 text-xs text-neutral-400 underline hover:text-neutral-600">
+                    Taking too long? Click here
+                </button>
+            </div>
+        );
+    }
 
     const quote = getQuoteOfTheDay();
 
     return (
         <>
             <div className="space-y-16 pb-24 md:pb-8">
+                {/* Error banner */}
+                {error && (
+                    <div className="card p-4 border-neutral-300 bg-neutral-50 animate-fade-in">
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm text-neutral-600">{error}</p>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => { setError(null); setLoading(true); setRefreshKey((k) => k + 1); }} className="text-xs text-neutral-500 underline">Retry</button>
+                                <button onClick={() => setError(null)} className="text-neutral-300 hover:text-neutral-500">&times;</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* TODAY */}
                 <section ref={todayRef} id="today" className="scroll-mt-16">
                     <div className="scroll-reveal">
@@ -205,15 +242,12 @@ export default function DashboardPage() {
                                     const logs = logsMap[addiction.id] || [];
                                     const streak = calculateStreaks(logs);
                                     const todayLog = logs.find((l) => l.date === todayStr);
-
                                     return (
                                         <button key={addiction.id} onClick={() => setQuickLogId(addiction.id)}
                                             className={`card p-4 text-left transition-all ${todayLog ? "border-neutral-400" : "hover:border-neutral-300"}`}>
                                             <div className="flex items-center justify-between mb-2">
                                                 <h3 className="text-sm font-medium text-neutral-900">{addiction.name}</h3>
-                                                {todayLog && (
-                                                    <span className="text-[0.65rem] text-neutral-500 font-medium uppercase">{todayLog.status}</span>
-                                                )}
+                                                {todayLog && <span className="text-[0.65rem] text-neutral-500 font-medium uppercase">{todayLog.status}</span>}
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <ProgressRing percentage={streak.cleanPercentage} size={36} strokeWidth={3} color="#737373" bgColor="#f5f5f5">
@@ -250,7 +284,6 @@ export default function DashboardPage() {
                                 const logs = logsMap[addiction.id] || [];
                                 const streak = calculateStreaks(logs);
                                 const isSelected = selectedTracker === addiction.id;
-
                                 return (
                                     <div key={addiction.id} onClick={() => setSelectedTracker(addiction.id)}
                                         className={`card p-4 cursor-pointer ${isSelected ? "border-neutral-400" : ""}`}>

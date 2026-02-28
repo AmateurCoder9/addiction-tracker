@@ -14,36 +14,36 @@ export default function StreakDisplay({ streakData, addictionName }: StreakDispl
             value: streakData.currentStreak,
             suffix: "days",
             icon: "🔥",
-            color: "from-orange-400 to-red-500",
+            color: "from-emerald-500 to-teal-500",
         },
         {
             label: "Longest Streak",
             value: streakData.longestStreak,
             suffix: "days",
             icon: "🏆",
-            color: "from-yellow-400 to-amber-500",
+            color: "from-amber-400 to-orange-400",
         },
         {
             label: "Clean Days",
             value: streakData.totalClean,
             suffix: `(${streakData.cleanPercentage}%)`,
             icon: "✅",
-            color: "from-green-400 to-emerald-500",
+            color: "from-green-500 to-emerald-500",
         },
         {
-            label: "Total Relapses",
-            value: streakData.totalRelapses,
-            suffix: `(${streakData.relapsePercentage}%)`,
-            icon: "⚠️",
+            label: "Money Spent",
+            value: `₹${streakData.totalCost.toFixed(0)}`,
+            suffix: "total",
+            icon: "💸",
             color: "from-red-400 to-rose-500",
         },
     ];
 
     return (
         <div>
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <span className="text-purple-400">📊</span>
-                {addictionName} — Streak Summary
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <span className="text-emerald-500">📊</span>
+                {addictionName} — Summary
             </h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-children">
                 {stats.map((stat) => (

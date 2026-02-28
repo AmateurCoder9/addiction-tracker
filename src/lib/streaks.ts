@@ -12,6 +12,7 @@ export function calculateStreaks(logs: Log[]): StreakData {
             totalLogs: 0,
             cleanPercentage: 0,
             relapsePercentage: 0,
+            totalCost: 0,
             monthlySummary: [],
         };
     }
@@ -24,6 +25,7 @@ export function calculateStreaks(logs: Log[]): StreakData {
     const totalClean = sorted.filter((l) => l.status === "clean").length;
     const totalPartial = sorted.filter((l) => l.status === "partial").length;
     const totalLogs = sorted.length;
+    const totalCost = sorted.reduce((acc, l) => acc + (Number(l.cost) || 0), 0);
 
     const cleanPercentage = totalLogs > 0 ? Math.round((totalClean / totalLogs) * 100) : 0;
     const relapsePercentage = totalLogs > 0 ? Math.round((totalRelapses / totalLogs) * 100) : 0;
@@ -91,11 +93,13 @@ export function calculateStreaks(logs: Log[]): StreakData {
                 relapse: 0,
                 partial: 0,
                 total: 0,
+                cost: 0,
             });
         }
 
         const entry = monthlyMap.get(key)!;
         entry.total++;
+        entry.cost += Number(log.cost) || 0;
         if (log.status === "clean") entry.clean++;
         else if (log.status === "relapse") entry.relapse++;
         else if (log.status === "partial") entry.partial++;
@@ -112,6 +116,7 @@ export function calculateStreaks(logs: Log[]): StreakData {
         totalLogs,
         cleanPercentage,
         relapsePercentage,
+        totalCost,
         monthlySummary,
     };
 }

@@ -9,9 +9,9 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         <div className="min-h-screen flex flex-col">
             {/* Background gradient */}
             <div className="fixed inset-0 -z-10">
-                <div className="absolute inset-0 bg-gray-950 dark:bg-gray-950 light:bg-slate-50" />
-                <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-purple-600/10 via-transparent to-transparent rounded-full blur-3xl" />
-                <div className="absolute bottom-1/4 right-0 w-[400px] h-[400px] bg-gradient-to-tl from-indigo-600/8 via-transparent to-transparent rounded-full blur-3xl" />
+                <div className="absolute inset-0 bg-gradient-to-br from-green-50 via-cyan-50/30 to-sky-50" />
+                <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-emerald-200/20 via-transparent to-transparent rounded-full blur-3xl" />
+                <div className="absolute bottom-1/4 right-0 w-[400px] h-[400px] bg-gradient-to-tl from-sky-200/15 via-transparent to-transparent rounded-full blur-3xl" />
             </div>
 
             <Navbar />

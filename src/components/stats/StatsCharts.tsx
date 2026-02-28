@@ -1,16 +1,8 @@
 "use client";
 
 import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    PieChart,
-    Pie,
-    Cell,
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    PieChart, Pie, Cell,
 } from "recharts";
 import type { MonthlySummary } from "@/lib/types";
 
@@ -20,9 +12,9 @@ interface StatsChartsProps {
 }
 
 const COLORS = {
-    clean: "#4ade80",
-    relapse: "#f87171",
-    partial: "#facc15",
+    clean: "#10b981",
+    relapse: "#ef4444",
+    partial: "#f59e0b",
 };
 
 export default function StatsCharts({ monthlySummary, addictionName }: StatsChartsProps) {
@@ -45,35 +37,17 @@ export default function StatsCharts({ monthlySummary, addictionName }: StatsChar
 
     return (
         <div className="space-y-6">
-            {/* Bar Chart */}
             <div className="glass-card p-5">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                     <span>📊</span> Monthly Breakdown — {addictionName}
                 </h3>
                 <div className="h-64 sm:h-80">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={barData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                            <XAxis
-                                dataKey="name"
-                                tick={{ fill: "#9ca3af", fontSize: 11 }}
-                                axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
-                            />
-                            <YAxis
-                                tick={{ fill: "#9ca3af", fontSize: 11 }}
-                                axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
-                                allowDecimals={false}
-                            />
-                            <Tooltip
-                                contentStyle={{
-                                    background: "#1f2937",
-                                    border: "1px solid rgba(255,255,255,0.1)",
-                                    borderRadius: "0.75rem",
-                                    fontSize: "0.75rem",
-                                }}
-                                itemStyle={{ color: "#e5e7eb" }}
-                                labelStyle={{ color: "#e5e7eb", fontWeight: 600 }}
-                            />
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+                            <XAxis dataKey="name" tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={{ stroke: "rgba(0,0,0,0.1)" }} />
+                            <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={{ stroke: "rgba(0,0,0,0.1)" }} allowDecimals={false} />
+                            <Tooltip contentStyle={{ background: "white", border: "1px solid #e5e7eb", borderRadius: "0.75rem", fontSize: "0.75rem" }} />
                             <Bar dataKey="Clean" fill={COLORS.clean} radius={[4, 4, 0, 0]} />
                             <Bar dataKey="Relapse" fill={COLORS.relapse} radius={[4, 4, 0, 0]} />
                             <Bar dataKey="Partial" fill={COLORS.partial} radius={[4, 4, 0, 0]} />
@@ -82,9 +56,8 @@ export default function StatsCharts({ monthlySummary, addictionName }: StatsChar
                 </div>
             </div>
 
-            {/* Pie Chart */}
             <div className="glass-card p-5">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                     <span>🥧</span> Overall Distribution
                 </h3>
                 <div className="h-64 flex items-center justify-center">
@@ -93,41 +66,18 @@ export default function StatsCharts({ monthlySummary, addictionName }: StatsChar
                             <div className="w-48 h-48">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
-                                        <Pie
-                                            data={pieData}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={50}
-                                            outerRadius={80}
-                                            paddingAngle={3}
-                                            dataKey="value"
-                                        >
-                                            {pieData.map((entry) => (
-                                                <Cell key={entry.name} fill={entry.color} />
-                                            ))}
+                                        <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
+                                            {pieData.map((entry) => (<Cell key={entry.name} fill={entry.color} />))}
                                         </Pie>
-                                        <Tooltip
-                                            contentStyle={{
-                                                background: "#1f2937",
-                                                border: "1px solid rgba(255,255,255,0.1)",
-                                                borderRadius: "0.75rem",
-                                                fontSize: "0.75rem",
-                                            }}
-                                        />
+                                        <Tooltip contentStyle={{ background: "white", border: "1px solid #e5e7eb", borderRadius: "0.75rem", fontSize: "0.75rem" }} />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
                             <div className="flex flex-col gap-3">
                                 {pieData.map((entry) => (
                                     <div key={entry.name} className="flex items-center gap-2">
-                                        <div
-                                            className="w-3 h-3 rounded-sm"
-                                            style={{ background: entry.color }}
-                                        />
-                                        <span className="text-sm text-gray-300">
-                                            {entry.name}:{" "}
-                                            <span className="font-semibold text-white">{entry.value}</span>
-                                        </span>
+                                        <div className="w-3 h-3 rounded-sm" style={{ background: entry.color }} />
+                                        <span className="text-sm text-gray-600">{entry.name}: <span className="font-semibold text-gray-800">{entry.value}</span></span>
                                     </div>
                                 ))}
                             </div>

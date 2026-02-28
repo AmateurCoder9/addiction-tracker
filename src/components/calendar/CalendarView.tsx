@@ -19,7 +19,7 @@ import type { DayLog } from "@/lib/types";
 interface CalendarViewProps {
     logs: DayLog[];
     year: number;
-    onSaveLog: (date: string, status: "clean" | "relapse" | "partial", note: string) => Promise<void>;
+    onSaveLog: (date: string, status: "clean" | "relapse" | "partial", note: string, cost: number) => Promise<void>;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -47,9 +47,9 @@ export default function CalendarView({ logs, year, onSaveLog }: CalendarViewProp
         setSelectedDate(dateStr);
     }, []);
 
-    async function handleSave(status: "clean" | "relapse" | "partial", note: string) {
+    async function handleSave(status: "clean" | "relapse" | "partial", note: string, cost: number) {
         if (!selectedDate) return;
-        await onSaveLog(selectedDate, status, note);
+        await onSaveLog(selectedDate, status, note, cost);
         setSelectedDate(null);
     }
 
@@ -65,14 +65,14 @@ export default function CalendarView({ logs, year, onSaveLog }: CalendarViewProp
 
                     return (
                         <div key={monthLabel} className="glass-card p-3 hover:translate-y-0">
-                            <h4 className="text-xs font-semibold text-gray-300 mb-2 text-center">
+                            <h4 className="text-xs font-semibold text-gray-600 mb-2 text-center">
                                 {monthLabel}
                             </h4>
 
                             {/* Weekday headers */}
                             <div className="grid grid-cols-7 gap-0.5 mb-1">
                                 {WEEKDAYS.map((d) => (
-                                    <div key={d} className="text-center text-[0.5rem] text-gray-500 font-medium">
+                                    <div key={d} className="text-center text-[0.5rem] text-gray-400 font-medium">
                                         {d[0]}
                                     </div>
                                 ))}
@@ -118,16 +118,16 @@ export default function CalendarView({ logs, year, onSaveLog }: CalendarViewProp
             {/* Legend */}
             <div className="flex items-center justify-center gap-6 mt-6">
                 <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-sm bg-green-500/60 border border-green-500/80" />
-                    <span className="text-xs text-gray-400">Clean</span>
+                    <div className="w-3 h-3 rounded-sm bg-emerald-400/60 border border-emerald-500" />
+                    <span className="text-xs text-gray-500">Clean</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-sm bg-red-500/60 border border-red-500/80" />
-                    <span className="text-xs text-gray-400">Relapse</span>
+                    <div className="w-3 h-3 rounded-sm bg-red-400/60 border border-red-500" />
+                    <span className="text-xs text-gray-500">Relapse</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-sm bg-yellow-500/60 border border-yellow-500/80" />
-                    <span className="text-xs text-gray-400">Partial</span>
+                    <div className="w-3 h-3 rounded-sm bg-amber-400/60 border border-amber-500" />
+                    <span className="text-xs text-gray-500">Partial</span>
                 </div>
             </div>
 

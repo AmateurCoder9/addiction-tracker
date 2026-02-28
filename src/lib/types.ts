@@ -12,6 +12,7 @@ export interface Log {
   date: string;
   status: "clean" | "relapse" | "partial";
   note: string | null;
+  cost: number;
   created_at: string;
 }
 
@@ -24,6 +25,7 @@ export interface StreakData {
   totalLogs: number;
   cleanPercentage: number;
   relapsePercentage: number;
+  totalCost: number;
   monthlySummary: MonthlySummary[];
 }
 
@@ -34,10 +36,12 @@ export interface MonthlySummary {
   relapse: number;
   partial: number;
   total: number;
+  cost: number;
 }
 
 export interface DayLog {
   date: string;
   status: "clean" | "relapse" | "partial";
   note: string | null;
+  cost: number;
 }

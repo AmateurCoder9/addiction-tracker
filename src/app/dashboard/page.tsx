@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { calculateStreaks, isMilestoneStreak, getMilestoneMessage } from "@/lib/streaks";
 import { getQuoteOfTheDay } from "@/lib/quotes";
@@ -21,13 +22,14 @@ function AnimatedStat({ value, label }: { value: number; label: string }) {
     const { count, ref } = useAnimatedCounter(value);
     return (
         <div ref={ref} className="text-center">
-            <div className="text-2xl font-light text-neutral-900">{count}</div>
-            <div className="text-[0.65rem] text-neutral-400 mt-0.5">{label}</div>
+            <div className="text-3xl font-light text-white">{count}</div>
+            <div className="text-[0.65rem] text-neutral-500 mt-1 uppercase tracking-widest">{label}</div>
         </div>
     );
 }
 
 export default function DashboardPage() {
+    const router = useRouter();
     const [addictions, setAddictions] = useState<Addiction[]>([]);
     const [logsMap, setLogsMap] = useState<Record<string, Log[]>>({});
     const [loading, setLoading] = useState(true);
@@ -39,6 +41,7 @@ export default function DashboardPage() {
     const [selectedTracker, setSelectedTracker] = useState<string | null>(null);
     const [activeSection, setActiveSection] = useState("today");
     const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+    const [loggingOut, setLoggingOut] = useState(false);
     const supabaseRef = useRef(createClient());
 
     const todayRef = useRef<HTMLDivElement>(null);
@@ -58,19 +61,19 @@ export default function DashboardPage() {
         async function load() {
             try {
                 const { data: { user }, error: userErr } = await supabase.auth.getUser();
-                if (userErr) { console.error("Auth error:", userErr); setError("Authentication error. Please log in again."); setLoading(false); clearTimeout(timeout); return; }
+                if (userErr) { setError("Authentication error. Please log in again."); setLoading(false); clearTimeout(timeout); return; }
                 if (!user || cancelled) { setLoading(false); clearTimeout(timeout); return; }
 
                 const { data: addictionsData, error: addErr } = await supabase.from("addictions").select("*").eq("user_id", user.id).order("created_at", { ascending: true });
                 if (cancelled) return;
-                if (addErr) { console.error("Fetch addictions error:", addErr); setError("Could not load trackers: " + addErr.message); setLoading(false); clearTimeout(timeout); return; }
+                if (addErr) { setError("Could not load trackers: " + addErr.message); setLoading(false); clearTimeout(timeout); return; }
 
                 setAddictions(addictionsData || []);
                 if (addictionsData && addictionsData.length > 0) setSelectedTracker((prev) => prev ?? addictionsData[0].id);
 
                 const { data: logsData, error: logErr } = await supabase.from("logs").select("*").eq("user_id", user.id).order("date", { ascending: true });
                 if (cancelled) return;
-                if (logErr) { console.error("Fetch logs error:", logErr); }
+                if (logErr) console.error("Fetch logs error:", logErr);
 
                 if (logsData) {
                     const grouped: Record<string, Log[]> = {};
@@ -93,7 +96,7 @@ export default function DashboardPage() {
                 }
             } catch (err) {
                 console.error("Dashboard load error:", err);
-                setError("Connection failed. Supabase may be down. Please refresh.");
+                setError("Connection failed. Please refresh.");
             }
             if (!cancelled) { setLoading(false); clearTimeout(timeout); }
         }
@@ -101,6 +104,12 @@ export default function DashboardPage() {
         load();
         return () => { cancelled = true; clearTimeout(timeout); };
     }, [refreshKey]);
+
+    async function handleLogout() {
+        setLoggingOut(true);
+        try { await supabaseRef.current.auth.signOut(); } catch (e) { console.error(e); }
+        router.push("/login");
+    }
 
     const handleNavigate = useCallback((section: string) => {
         setActiveSection(section);
@@ -140,17 +149,12 @@ export default function DashboardPage() {
             const supabase = supabaseRef.current;
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
-
             const todayStr = format(new Date(), "yyyy-MM-dd");
             const existing = (logsMap[quickLogId] || []).find((l) => l.date === todayStr);
             const logData: Record<string, unknown> = { status, note: note || null };
             if (cost > 0) logData.cost = cost;
-
-            if (existing) {
-                await supabase.from("logs").update(logData).eq("id", existing.id);
-            } else {
-                await supabase.from("logs").insert({ user_id: user.id, addiction_id: quickLogId, date: todayStr, ...logData });
-            }
+            if (existing) { await supabase.from("logs").update(logData).eq("id", existing.id); }
+            else { await supabase.from("logs").insert({ user_id: user.id, addiction_id: quickLogId, date: todayStr, ...logData }); }
         } catch (e) { console.error("Log error:", e); }
         setQuickLogId(null);
         setRefreshKey((k) => k + 1);
@@ -162,16 +166,11 @@ export default function DashboardPage() {
             const supabase = supabaseRef.current;
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
-
             const existing = (logsMap[selectedTracker] || []).find((l) => l.date === date);
             const logData: Record<string, unknown> = { status, note: note || null };
             if (cost > 0) logData.cost = cost;
-
-            if (existing) {
-                await supabase.from("logs").update(logData).eq("id", existing.id);
-            } else {
-                await supabase.from("logs").insert({ user_id: user.id, addiction_id: selectedTracker, date, ...logData });
-            }
+            if (existing) { await supabase.from("logs").update(logData).eq("id", existing.id); }
+            else { await supabase.from("logs").insert({ user_id: user.id, addiction_id: selectedTracker, date, ...logData }); }
         } catch (e) { console.error("Calendar log error:", e); }
         setRefreshKey((k) => k + 1);
     }
@@ -186,10 +185,10 @@ export default function DashboardPage() {
 
     if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
-                <div className="w-5 h-5 border border-neutral-300 border-t-neutral-900 rounded-full animate-spin" />
-                <p className="mt-4 text-xs text-neutral-400">Loading...</p>
-                <button onClick={() => { setLoading(false); setError("Manually skipped loading."); }} className="mt-4 text-xs text-neutral-400 underline hover:text-neutral-600">
+            <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+                <div className="w-5 h-5 border border-neutral-700 border-t-neutral-400 rounded-full animate-spin" />
+                <p className="mt-4 text-xs text-neutral-600">Loading...</p>
+                <button onClick={() => { setLoading(false); setError("Manually skipped."); }} className="mt-6 text-xs text-neutral-700 underline hover:text-neutral-500">
                     Taking too long? Click here
                 </button>
             </div>
@@ -199,61 +198,71 @@ export default function DashboardPage() {
     const quote = getQuoteOfTheDay();
 
     return (
-        <>
-            <div className="space-y-16 pb-24 md:pb-8">
-                {/* Error banner */}
+        <div className="min-h-screen bg-black text-white">
+            {/* Top bar */}
+            <nav className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-neutral-900">
+                <div className="mx-auto max-w-5xl px-4 sm:px-6 flex h-12 items-center justify-between">
+                    <span className="text-sm font-semibold tracking-tight">AddictionTracker</span>
+                    <button onClick={handleLogout} disabled={loggingOut} className="text-xs text-neutral-600 hover:text-neutral-400 transition-colors">
+                        {loggingOut ? "..." : "Log out"}
+                    </button>
+                </div>
+            </nav>
+
+            <div className="mx-auto max-w-5xl px-4 sm:px-6">
+                {/* Error */}
                 {error && (
-                    <div className="card p-4 border-neutral-300 bg-neutral-50 animate-fade-in">
+                    <div className="mt-6 p-4 rounded-lg bg-neutral-900 border border-neutral-800 animate-fade-in">
                         <div className="flex items-center justify-between">
-                            <p className="text-sm text-neutral-600">{error}</p>
-                            <div className="flex items-center gap-2">
+                            <p className="text-sm text-neutral-400">{error}</p>
+                            <div className="flex items-center gap-3">
                                 <button onClick={() => { setError(null); setLoading(true); setRefreshKey((k) => k + 1); }} className="text-xs text-neutral-500 underline">Retry</button>
-                                <button onClick={() => setError(null)} className="text-neutral-300 hover:text-neutral-500">&times;</button>
+                                <button onClick={() => setError(null)} className="text-neutral-600 hover:text-neutral-400">&times;</button>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* TODAY */}
-                <section ref={todayRef} id="today" className="scroll-mt-16">
+                {/* ===== HERO / TODAY ===== */}
+                <section ref={todayRef} id="today" className="min-h-[70vh] flex flex-col justify-center py-20 scroll-mt-12">
                     <div className="scroll-reveal">
-                        <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">{greeting}</h1>
-                        <p className="text-xs text-neutral-400 mt-1">{format(new Date(), "EEEE, MMMM d, yyyy")}</p>
+                        <h1 className="text-5xl sm:text-7xl font-semibold tracking-tight leading-[0.9]">{greeting}.</h1>
+                        <p className="mt-4 text-sm text-neutral-600">{format(new Date(), "EEEE, MMMM d, yyyy")}</p>
                     </div>
 
-                    <div className="mt-5 card p-4 scroll-reveal" style={{ transitionDelay: "100ms" }}>
-                        <p className="text-sm text-neutral-500 italic">&ldquo;{quote}&rdquo;</p>
+                    <div className="mt-12 scroll-reveal" style={{ transitionDelay: "150ms" }}>
+                        <p className="text-neutral-500 text-sm italic max-w-md">&ldquo;{quote}&rdquo;</p>
                     </div>
 
                     {milestoneMessage && (
-                        <div className="mt-3 card p-4 border-neutral-300 animate-fade-in">
+                        <div className="mt-6 p-4 rounded-lg bg-neutral-900 border border-neutral-800 animate-fade-in max-w-md">
                             <div className="flex items-center justify-between">
-                                <p className="text-sm text-neutral-700">{milestoneMessage}</p>
-                                <button onClick={() => setMilestoneMessage(null)} className="text-neutral-300 hover:text-neutral-500 text-sm">&times;</button>
+                                <p className="text-sm text-neutral-300">{milestoneMessage}</p>
+                                <button onClick={() => setMilestoneMessage(null)} className="text-neutral-600 hover:text-neutral-400">&times;</button>
                             </div>
                         </div>
                     )}
 
                     {addictions.length > 0 && (
-                        <div className="mt-8">
-                            <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-[0.15em] mb-3">Log today</h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        <div className="mt-16 scroll-reveal" style={{ transitionDelay: "300ms" }}>
+                            <p className="text-xs text-neutral-600 uppercase tracking-[0.2em] mb-4">Log today</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {addictions.map((addiction) => {
                                     const logs = logsMap[addiction.id] || [];
                                     const streak = calculateStreaks(logs);
                                     const todayLog = logs.find((l) => l.date === todayStr);
                                     return (
                                         <button key={addiction.id} onClick={() => setQuickLogId(addiction.id)}
-                                            className={`card p-4 text-left transition-all ${todayLog ? "border-neutral-400" : "hover:border-neutral-300"}`}>
+                                            className={`p-4 rounded-lg border text-left transition-all ${todayLog ? "bg-neutral-900 border-neutral-700" : "bg-neutral-950 border-neutral-800 hover:border-neutral-700"}`}>
                                             <div className="flex items-center justify-between mb-2">
-                                                <h3 className="text-sm font-medium text-neutral-900">{addiction.name}</h3>
-                                                {todayLog && <span className="text-[0.65rem] text-neutral-500 font-medium uppercase">{todayLog.status}</span>}
+                                                <h3 className="text-sm font-medium text-white">{addiction.name}</h3>
+                                                {todayLog && <span className="text-[0.65rem] text-neutral-500 uppercase">{todayLog.status}</span>}
                                             </div>
                                             <div className="flex items-center gap-3">
-                                                <ProgressRing percentage={streak.cleanPercentage} size={36} strokeWidth={3} color="#737373" bgColor="#f5f5f5">
-                                                    <span className="text-[0.6rem] font-medium text-neutral-600">{streak.currentStreak}</span>
+                                                <ProgressRing percentage={streak.cleanPercentage} size={36} strokeWidth={3} color="#525252" bgColor="#262626">
+                                                    <span className="text-[0.6rem] font-medium text-neutral-400">{streak.currentStreak}</span>
                                                 </ProgressRing>
-                                                <div className="text-xs text-neutral-400">
+                                                <div className="text-xs text-neutral-500">
                                                     <div>{streak.currentStreak}d streak</div>
                                                     {streak.totalCost > 0 && <div>₹{streak.totalCost.toFixed(0)} spent</div>}
                                                 </div>
@@ -264,52 +273,60 @@ export default function DashboardPage() {
                             </div>
                         </div>
                     )}
+
+                    {/* Scroll indicator */}
+                    <div className="mt-20 flex justify-center animate-bounce-arrow">
+                        <svg className="w-5 h-5 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 14l-7 7m0 0l-7-7" />
+                        </svg>
+                    </div>
                 </section>
 
-                {/* TRACKERS */}
-                <section ref={trackersRef} id="trackers" className="scroll-mt-16">
+                {/* ===== TRACKERS ===== */}
+                <section ref={trackersRef} id="trackers" className="min-h-screen py-24 border-t border-neutral-900 scroll-mt-12">
                     <div className="scroll-reveal">
-                        <h2 className="text-lg font-semibold text-neutral-900 tracking-tight">Trackers</h2>
-                        <p className="text-xs text-neutral-400 mt-0.5">{addictions.length} tracked</p>
+                        <p className="text-xs text-neutral-600 uppercase tracking-[0.2em] mb-2">Your trackers</p>
+                        <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight">{addictions.length} tracked.</h2>
                     </div>
 
                     {addictions.length === 0 ? (
-                        <div className="text-center py-16 scroll-reveal">
-                            <h3 className="text-sm text-neutral-500 mb-1">No trackers yet</h3>
-                            <p className="text-xs text-neutral-400">Add something you want to overcome.</p>
+                        <div className="mt-16 text-center scroll-reveal">
+                            <p className="text-neutral-500 mb-2">No trackers yet.</p>
+                            <p className="text-sm text-neutral-700">Add something you want to overcome.</p>
                         </div>
                     ) : (
-                        <div className="mt-4 space-y-2 scroll-reveal">
-                            {addictions.map((addiction) => {
+                        <div className="mt-12 space-y-3">
+                            {addictions.map((addiction, i) => {
                                 const logs = logsMap[addiction.id] || [];
                                 const streak = calculateStreaks(logs);
                                 const isSelected = selectedTracker === addiction.id;
                                 return (
                                     <div key={addiction.id} onClick={() => setSelectedTracker(addiction.id)}
-                                        className={`card p-4 cursor-pointer ${isSelected ? "border-neutral-400" : ""}`}>
+                                        className={`scroll-reveal p-5 rounded-lg border cursor-pointer transition-all ${isSelected ? "bg-neutral-900 border-neutral-700" : "bg-neutral-950 border-neutral-800 hover:border-neutral-700"}`}
+                                        style={{ transitionDelay: `${i * 80}ms` }}>
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <ProgressRing percentage={streak.cleanPercentage} size={44} strokeWidth={3.5} color={isSelected ? "#525252" : "#d4d4d4"} bgColor="#f5f5f5">
-                                                    <span className="text-xs font-medium text-neutral-600">{streak.cleanPercentage}%</span>
+                                            <div className="flex items-center gap-4">
+                                                <ProgressRing percentage={streak.cleanPercentage} size={48} strokeWidth={3.5} color={isSelected ? "#a3a3a3" : "#404040"} bgColor="#262626">
+                                                    <span className="text-xs font-medium text-neutral-400">{streak.cleanPercentage}%</span>
                                                 </ProgressRing>
                                                 <div>
-                                                    <h3 className="text-sm font-medium text-neutral-900">{addiction.name}</h3>
-                                                    <div className="flex items-center gap-3 mt-0.5 text-xs text-neutral-400">
+                                                    <h3 className="text-base font-medium text-white">{addiction.name}</h3>
+                                                    <div className="flex items-center gap-4 mt-1 text-xs text-neutral-500">
                                                         <span>{streak.currentStreak}d streak</span>
                                                         <span>{streak.longestStreak}d best</span>
                                                         {streak.totalCost > 0 && <span>₹{streak.totalCost.toFixed(0)}</span>}
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-1.5">
+                                            <div className="flex items-center gap-2">
                                                 <button onClick={(e) => { e.stopPropagation(); setQuickLogId(addiction.id); }}
-                                                    className="px-2.5 py-1 rounded text-xs text-neutral-500 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 transition-colors">
+                                                    className="px-3 py-1.5 rounded text-xs text-neutral-400 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 transition-colors">
                                                     Log
                                                 </button>
                                                 <button onClick={(e) => { e.stopPropagation(); handleDeleteAddiction(addiction.id); }}
                                                     disabled={deletingId === addiction.id}
-                                                    className="p-1 rounded text-neutral-300 hover:text-neutral-500 transition-colors disabled:opacity-30">
-                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    className="p-1.5 rounded text-neutral-700 hover:text-neutral-400 transition-colors disabled:opacity-30">
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                                                     </svg>
                                                 </button>
@@ -321,27 +338,28 @@ export default function DashboardPage() {
                         </div>
                     )}
 
-                    <div className="mt-3 scroll-reveal">
+                    <div className="mt-6 scroll-reveal">
                         <AddAddictionForm onAdd={handleAddAddiction} />
                     </div>
                 </section>
 
-                {/* CALENDAR */}
+                {/* ===== CALENDAR ===== */}
                 {selectedTracker && (
-                    <section ref={calendarRef} id="calendar" className="scroll-mt-16">
-                        <div className="scroll-reveal flex items-center justify-between mb-4">
+                    <section ref={calendarRef} id="calendar" className="min-h-screen py-24 border-t border-neutral-900 scroll-mt-12">
+                        <div className="scroll-reveal flex items-center justify-between mb-8">
                             <div>
-                                <h2 className="text-lg font-semibold text-neutral-900 tracking-tight">Calendar</h2>
-                                <p className="text-xs text-neutral-400">{selectedName}</p>
+                                <p className="text-xs text-neutral-600 uppercase tracking-[0.2em] mb-2">Calendar</p>
+                                <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight">Every day counts.</h2>
+                                <p className="text-sm text-neutral-600 mt-2">{selectedName}</p>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button onClick={() => setCalendarYear(calendarYear - 1)} className="p-1.5 rounded text-neutral-400 hover:text-neutral-600 transition-colors">
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                <button onClick={() => setCalendarYear(calendarYear - 1)} className="p-2 rounded text-neutral-600 hover:text-neutral-400 transition-colors">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
-                                <span className="text-xs text-neutral-500 font-mono w-10 text-center">{calendarYear}</span>
+                                <span className="text-sm text-neutral-500 font-mono w-12 text-center">{calendarYear}</span>
                                 <button onClick={() => setCalendarYear(calendarYear + 1)} disabled={calendarYear >= currentYear}
-                                    className="p-1.5 rounded text-neutral-400 hover:text-neutral-600 transition-colors disabled:opacity-20">
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    className="p-2 rounded text-neutral-600 hover:text-neutral-400 transition-colors disabled:opacity-20">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                 </button>
                             </div>
                         </div>
@@ -351,16 +369,17 @@ export default function DashboardPage() {
                     </section>
                 )}
 
-                {/* STATS */}
+                {/* ===== STATS ===== */}
                 {selectedTracker && selectedLogs.length > 0 && (
-                    <section ref={statsRef} id="stats" className="scroll-mt-16">
+                    <section ref={statsRef} id="stats" className="min-h-screen py-24 border-t border-neutral-900 scroll-mt-12">
                         <div className="scroll-reveal">
-                            <h2 className="text-lg font-semibold text-neutral-900 tracking-tight">Statistics</h2>
-                            <p className="text-xs text-neutral-400 mb-4">{selectedName}</p>
+                            <p className="text-xs text-neutral-600 uppercase tracking-[0.2em] mb-2">Statistics</p>
+                            <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight">See your progress.</h2>
+                            <p className="text-sm text-neutral-600 mt-2">{selectedName}</p>
                         </div>
 
-                        <div className="card p-5 scroll-reveal" style={{ transitionDelay: "100ms" }}>
-                            <div className="grid grid-cols-5 gap-4">
+                        <div className="mt-12 p-8 rounded-lg bg-neutral-950 border border-neutral-800 scroll-reveal" style={{ transitionDelay: "100ms" }}>
+                            <div className="grid grid-cols-5 gap-6">
                                 <AnimatedStat value={selectedStreaks.currentStreak} label="Current" />
                                 <AnimatedStat value={selectedStreaks.longestStreak} label="Best" />
                                 <AnimatedStat value={selectedStreaks.cleanPercentage} label="Clean %" />
@@ -371,42 +390,47 @@ export default function DashboardPage() {
 
                         {selectedStreaks.monthlySummary.length > 0 && (
                             <>
-                                <div className="mt-4 card p-5 scroll-reveal overflow-x-auto" style={{ transitionDelay: "200ms" }}>
+                                <div className="mt-6 p-6 rounded-lg bg-neutral-950 border border-neutral-800 scroll-reveal overflow-x-auto" style={{ transitionDelay: "200ms" }}>
                                     <table className="w-full text-xs">
                                         <thead>
-                                            <tr className="border-b border-neutral-100">
-                                                <th className="text-left py-2 text-neutral-400 font-medium">Month</th>
-                                                <th className="text-center py-2 text-neutral-400 font-medium">Clean</th>
-                                                <th className="text-center py-2 text-neutral-400 font-medium">Relapse</th>
-                                                <th className="text-center py-2 text-neutral-400 font-medium">Partial</th>
-                                                <th className="text-center py-2 text-neutral-400 font-medium">Cost</th>
+                                            <tr className="border-b border-neutral-800">
+                                                <th className="text-left py-2 text-neutral-500 font-medium">Month</th>
+                                                <th className="text-center py-2 text-neutral-500 font-medium">Clean</th>
+                                                <th className="text-center py-2 text-neutral-500 font-medium">Relapse</th>
+                                                <th className="text-center py-2 text-neutral-500 font-medium">Partial</th>
+                                                <th className="text-center py-2 text-neutral-500 font-medium">Cost</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {selectedStreaks.monthlySummary.map((m) => (
-                                                <tr key={`${m.month}-${m.year}`} className="border-b border-neutral-50 last:border-0">
-                                                    <td className="py-2 text-neutral-700">{m.month} {m.year}</td>
-                                                    <td className="text-center py-2 text-neutral-600">{m.clean}</td>
-                                                    <td className="text-center py-2 text-neutral-600">{m.relapse}</td>
-                                                    <td className="text-center py-2 text-neutral-600">{m.partial}</td>
-                                                    <td className="text-center py-2 text-neutral-400">₹{m.cost.toFixed(0)}</td>
+                                                <tr key={`${m.month}-${m.year}`} className="border-b border-neutral-900 last:border-0">
+                                                    <td className="py-2.5 text-neutral-300">{m.month} {m.year}</td>
+                                                    <td className="text-center py-2.5 text-neutral-400">{m.clean}</td>
+                                                    <td className="text-center py-2.5 text-neutral-400">{m.relapse}</td>
+                                                    <td className="text-center py-2.5 text-neutral-400">{m.partial}</td>
+                                                    <td className="text-center py-2.5 text-neutral-600">₹{m.cost.toFixed(0)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
 
-                                <div className="mt-4 scroll-reveal" style={{ transitionDelay: "300ms" }}>
+                                <div className="mt-6 scroll-reveal" style={{ transitionDelay: "300ms" }}>
                                     <StatsCharts monthlySummary={selectedStreaks.monthlySummary} addictionName={selectedName} />
                                 </div>
                             </>
                         )}
 
-                        <div className="mt-4 scroll-reveal" style={{ transitionDelay: "400ms" }}>
+                        <div className="mt-6 scroll-reveal" style={{ transitionDelay: "400ms" }}>
                             <HeatmapGrid logs={selectedLogs} />
                         </div>
                     </section>
                 )}
+
+                {/* Footer */}
+                <footer className="border-t border-neutral-900 py-8 text-center">
+                    <p className="text-xs text-neutral-800">Built by Vedant Kapadia</p>
+                </footer>
             </div>
 
             <BottomNav activeSection={activeSection} onNavigate={handleNavigate} />
@@ -423,6 +447,6 @@ export default function DashboardPage() {
                     onClose={() => setQuickLogId(null)}
                 />
             )}
-        </>
+        </div>
     );
 }

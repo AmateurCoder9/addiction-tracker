@@ -23,20 +23,20 @@ export default function AddAddictionForm({ onAdd }: AddAddictionFormProps) {
 
     if (!isOpen) {
         return (
-            <button onClick={() => setIsOpen(true)} className="card p-4 w-full text-left hover:border-neutral-300 transition-colors">
-                <span className="text-sm text-neutral-400">+ Add tracker</span>
+            <button onClick={() => setIsOpen(true)} className="w-full p-4 rounded-lg border border-dashed border-neutral-800 text-left hover:border-neutral-700 transition-colors">
+                <span className="text-sm text-neutral-600">+ Add tracker</span>
             </button>
         );
     }
 
     return (
-        <div className="card p-4 animate-fade-in">
+        <div className="p-4 rounded-lg bg-neutral-950 border border-neutral-800 animate-fade-in">
             <form onSubmit={handleSubmit} className="flex gap-2">
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input-field flex-1 text-sm" placeholder="e.g. Smoking, Social Media..." autoFocus maxLength={100} />
-                <button type="submit" disabled={adding || !name.trim()} className="btn-primary text-xs px-4">
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input-field input-dark flex-1 text-sm" placeholder="e.g. Smoking, Social Media..." autoFocus maxLength={100} />
+                <button type="submit" disabled={adding || !name.trim()} className="px-4 py-2 rounded-md text-xs font-medium bg-white text-black hover:bg-neutral-200 transition-colors disabled:opacity-40">
                     {adding ? "..." : "Add"}
                 </button>
-                <button type="button" onClick={() => { setIsOpen(false); setName(""); }} className="btn-ghost text-xs">
+                <button type="button" onClick={() => { setIsOpen(false); setName(""); }} className="px-3 py-2 rounded-md text-xs text-neutral-500 border border-neutral-700 hover:border-neutral-600 transition-colors">
                     Cancel
                 </button>
             </form>

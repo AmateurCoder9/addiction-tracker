@@ -48,11 +48,11 @@ export default function CalendarView({ logs, year, onSaveLog }: CalendarViewProp
                     const offset = getDay(ms);
 
                     return (
-                        <div key={format(month, "MMM")} className="card p-3">
+                        <div key={format(month, "MMM")} className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
                             <h4 className="text-xs font-medium text-neutral-500 mb-2 text-center">{format(month, "MMM")}</h4>
                             <div className="grid grid-cols-7 gap-0.5 mb-1">
                                 {WEEKDAYS.map((d, i) => (
-                                    <div key={i} className="text-center text-[0.5rem] text-neutral-300 font-medium">{d}</div>
+                                    <div key={i} className="text-center text-[0.5rem] text-neutral-700 font-medium">{d}</div>
                                 ))}
                             </div>
                             <div className="grid grid-cols-7 gap-0.5">
@@ -61,11 +61,16 @@ export default function CalendarView({ logs, year, onSaveLog }: CalendarViewProp
                                     const ds = format(day, "yyyy-MM-dd");
                                     const log = logMap.get(ds);
                                     const future = isFuture(day) && !isToday(day);
-                                    let cls = "calendar-day calendar-day-empty";
-                                    if (future) cls = "calendar-day calendar-day-disabled";
-                                    else if (log) cls = `calendar-day calendar-day-${log.status}`;
+
+                                    let bg = "bg-transparent text-neutral-700 hover:bg-neutral-900";
+                                    if (future) bg = "opacity-15 cursor-default";
+                                    else if (log?.status === "clean") bg = "bg-neutral-700 text-neutral-200";
+                                    else if (log?.status === "relapse") bg = "bg-white text-black";
+                                    else if (log?.status === "partial") bg = "bg-neutral-500 text-neutral-100";
+
                                     return (
-                                        <button key={ds} onClick={() => handleDayClick(ds)} disabled={future} className={cls} title={ds}>
+                                        <button key={ds} onClick={() => handleDayClick(ds)} disabled={future}
+                                            className={`aspect-square rounded text-[0.6rem] font-medium flex items-center justify-center transition-all ${bg}`} title={ds}>
                                             {day.getDate()}
                                         </button>
                                     );
@@ -77,9 +82,9 @@ export default function CalendarView({ logs, year, onSaveLog }: CalendarViewProp
             </div>
 
             <div className="flex items-center justify-center gap-6 mt-4">
-                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-neutral-200 border border-neutral-300" /><span className="text-xs text-neutral-400">Clean</span></div>
-                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-neutral-600 border border-neutral-500" /><span className="text-xs text-neutral-400">Relapse</span></div>
-                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-neutral-300 border border-neutral-400" /><span className="text-xs text-neutral-400">Partial</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-neutral-700" /><span className="text-xs text-neutral-600">Clean</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-white" /><span className="text-xs text-neutral-600">Relapse</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-neutral-500" /><span className="text-xs text-neutral-600">Partial</span></div>
             </div>
 
             {selectedDate && (

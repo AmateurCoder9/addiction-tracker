@@ -34,14 +34,13 @@ export default function LogModal({ date, existingLog, onSave, onClose }: LogModa
     ];
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-neutral-950 border border-neutral-800 rounded-lg p-6 w-full max-w-sm animate-slide-up" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-sm font-semibold text-neutral-900">Log entry</h3>
-                    <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 transition-colors text-lg leading-none">&times;</button>
+                    <h3 className="text-sm font-semibold text-white">Log entry</h3>
+                    <button onClick={onClose} className="text-neutral-600 hover:text-neutral-400 text-lg leading-none">&times;</button>
                 </div>
-
-                <p className="text-xs text-neutral-400 mb-5">{formattedDate}</p>
+                <p className="text-xs text-neutral-600 mb-5">{formattedDate}</p>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
@@ -49,7 +48,9 @@ export default function LogModal({ date, existingLog, onSave, onClose }: LogModa
                         <div className="grid grid-cols-3 gap-2">
                             {statusOptions.map((opt) => (
                                 <button key={opt.value} type="button" onClick={() => setStatus(opt.value)}
-                                    className={`py-2 rounded-md text-xs font-medium transition-all ${status === opt.value ? `status-${opt.value} ring-1 ring-neutral-400` : "bg-neutral-50 text-neutral-400 border border-neutral-200 hover:border-neutral-300"
+                                    className={`py-2.5 rounded-md text-xs font-medium transition-all border ${status === opt.value
+                                            ? "bg-white text-black border-white"
+                                            : "bg-neutral-900 text-neutral-500 border-neutral-800 hover:border-neutral-700"
                                         }`}>
                                     {opt.label}
                                 </button>
@@ -59,17 +60,17 @@ export default function LogModal({ date, existingLog, onSave, onClose }: LogModa
 
                     <div>
                         <label htmlFor="cost" className="block text-xs font-medium text-neutral-500 mb-1">Amount spent</label>
-                        <input id="cost" type="number" min="0" step="0.01" value={cost || ""} onChange={(e) => setCost(Number(e.target.value) || 0)} className="input-field" placeholder="0.00" />
+                        <input id="cost" type="number" min="0" step="0.01" value={cost || ""} onChange={(e) => setCost(Number(e.target.value) || 0)} className="input-field input-dark" placeholder="0.00" />
                     </div>
 
                     <div>
                         <label htmlFor="note" className="block text-xs font-medium text-neutral-500 mb-1">Note</label>
-                        <textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} className="input-field min-h-[60px] resize-none" placeholder="Optional" rows={2} />
+                        <textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} className="input-field input-dark min-h-[60px] resize-none" placeholder="Optional" rows={2} />
                     </div>
 
                     <div className="flex gap-2 pt-1">
-                        <button type="button" onClick={onClose} className="flex-1 btn-ghost text-xs">Cancel</button>
-                        <button type="submit" disabled={saving} className="flex-1 btn-primary text-xs">
+                        <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-md text-xs text-neutral-500 border border-neutral-800 hover:border-neutral-700 transition-colors">Cancel</button>
+                        <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-md text-xs font-medium bg-white text-black hover:bg-neutral-200 transition-colors disabled:opacity-40">
                             {saving ? "Saving..." : existingLog ? "Update" : "Save"}
                         </button>
                     </div>

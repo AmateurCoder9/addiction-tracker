@@ -53,36 +53,44 @@ export default function DashboardPage() {
         const supabase = supabaseRef.current;
 
         async function load() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user || cancelled) return;
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user || cancelled) { setLoading(false); return; }
 
-            const { data: addictionsData } = await supabase.from("addictions").select("*").eq("user_id", user.id).order("created_at", { ascending: true });
-            if (cancelled) return;
-
-            if (addictionsData) {
-                setAddictions(addictionsData);
-                if (addictionsData.length > 0) setSelectedTracker((prev) => prev ?? addictionsData[0].id);
-
-                const { data: logsData } = await supabase.from("logs").select("*").eq("user_id", user.id).order("date", { ascending: true });
+                const { data: addictionsData, error: addErr } = await supabase.from("addictions").select("*").eq("user_id", user.id).order("created_at", { ascending: true });
                 if (cancelled) return;
 
-                if (logsData) {
-                    const grouped: Record<string, Log[]> = {};
-                    for (const log of logsData) {
-                        if (!grouped[log.addiction_id]) grouped[log.addiction_id] = [];
-                        grouped[log.addiction_id].push(log);
-                    }
-                    setLogsMap(grouped);
+                if (addErr) { console.error("addictions error:", addErr); setLoading(false); return; }
 
-                    for (const addiction of addictionsData) {
-                        const streakData = calculateStreaks(grouped[addiction.id] || []);
-                        if (isMilestoneStreak(streakData.currentStreak)) {
-                            setMilestoneMessage(getMilestoneMessage(streakData.currentStreak));
-                            fireConfetti();
-                            break;
+                if (addictionsData) {
+                    setAddictions(addictionsData);
+                    if (addictionsData.length > 0) setSelectedTracker((prev) => prev ?? addictionsData[0].id);
+
+                    const { data: logsData, error: logErr } = await supabase.from("logs").select("*").eq("user_id", user.id).order("date", { ascending: true });
+                    if (cancelled) return;
+
+                    if (logErr) { console.error("logs error:", logErr); }
+
+                    if (logsData) {
+                        const grouped: Record<string, Log[]> = {};
+                        for (const log of logsData) {
+                            if (!grouped[log.addiction_id]) grouped[log.addiction_id] = [];
+                            grouped[log.addiction_id].push(log);
+                        }
+                        setLogsMap(grouped);
+
+                        for (const addiction of addictionsData) {
+                            const streakData = calculateStreaks(grouped[addiction.id] || []);
+                            if (isMilestoneStreak(streakData.currentStreak)) {
+                                setMilestoneMessage(getMilestoneMessage(streakData.currentStreak));
+                                fireConfetti();
+                                break;
+                            }
                         }
                     }
                 }
+            } catch (err) {
+                console.error("Dashboard load error:", err);
             }
             setLoading(false);
         }

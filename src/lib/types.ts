@@ -12,7 +12,7 @@ export interface Log {
   date: string;
   status: "clean" | "relapse" | "partial";
   note: string | null;
-  cost: number;
+  cost?: number;
   created_at: string;
 }
 
@@ -43,5 +43,6 @@ export interface DayLog {
   date: string;
   status: "clean" | "relapse" | "partial";
   note: string | null;
-  cost: number;
+  cost?: number;
 }
+

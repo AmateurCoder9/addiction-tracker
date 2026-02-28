@@ -44,57 +44,49 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen section-dark flex flex-col items-center justify-center px-6">
-            <div className="glow-green" style={{ top: "10%", left: "30%", opacity: 0.4 }} />
-            <div className="glow-blue" style={{ bottom: "20%", right: "20%", opacity: 0.3 }} />
-
-            <div className="relative z-10 w-full max-w-md animate-slide-up">
-                <div className="text-center mb-8">
-                    <Link href="/" className="inline-block">
-                        <span className="text-5xl mb-4 block">🛡️</span>
-                        <h1 className="text-3xl font-bold gradient-text-hero">AddictionTracker</h1>
+        <div className="min-h-screen bg-black flex items-center justify-center px-6">
+            <div className="w-full max-w-sm animate-slide-up">
+                <div className="text-center mb-10">
+                    <Link href="/">
+                        <h1 className="text-2xl font-semibold text-white tracking-tight">AddictionTracker</h1>
                     </Link>
-                    <p className="text-gray-500 mt-2 text-sm">Welcome back. Your journey continues.</p>
+                    <p className="text-neutral-600 mt-2 text-sm">Sign in to continue</p>
                 </div>
 
-                <div className="glass-card-dark p-8 border border-white/10">
-                    <h2 className="text-xl font-semibold text-white mb-6">Sign In</h2>
-
+                <div className="space-y-5">
                     {error && (
-                        <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm animate-fade-in">
+                        <div className="p-3 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-400 text-sm">
                             {error}
                         </div>
                     )}
 
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-1.5">Email</label>
+                            <label htmlFor="email" className="block text-xs font-medium text-neutral-500 mb-1.5">Email</label>
                             <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field input-dark" placeholder="you@example.com" required autoComplete="email" />
                         </div>
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-1.5">Password</label>
+                            <label htmlFor="password" className="block text-xs font-medium text-neutral-500 mb-1.5">Password</label>
                             <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input-field input-dark" placeholder="••••••••" required autoComplete="current-password" />
                         </div>
-                        <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2 py-3">
-                            {loading ? (
-                                <><span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Signing in...</>
-                            ) : "Sign In"}
+                        <button type="submit" disabled={loading} className="w-full bg-white text-black py-2.5 rounded-md text-sm font-medium hover:bg-neutral-200 transition-colors disabled:opacity-40">
+                            {loading ? "Signing in..." : "Sign in"}
                         </button>
                     </form>
 
-                    <div className="mt-4 flex items-center gap-3">
-                        <div className="flex-1 h-px bg-white/10" />
-                        <span className="text-xs text-gray-600">or</span>
-                        <div className="flex-1 h-px bg-white/10" />
+                    <div className="flex items-center gap-3">
+                        <div className="flex-1 h-px bg-neutral-800" />
+                        <span className="text-xs text-neutral-700">or</span>
+                        <div className="flex-1 h-px bg-neutral-800" />
                     </div>
 
-                    <button onClick={handleGuestMode} disabled={guestLoading} className="mt-4 btn-secondary w-full py-3 text-sm">
-                        {guestLoading ? "Loading..." : "👤 Continue as Guest"}
+                    <button onClick={handleGuestMode} disabled={guestLoading} className="w-full btn-outline py-2.5 text-sm">
+                        {guestLoading ? "Loading..." : "Continue as guest"}
                     </button>
 
-                    <p className="mt-6 text-center text-sm text-gray-500">
-                        Don&apos;t have an account?{" "}
-                        <Link href="/signup" className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">Sign Up</Link>
+                    <p className="text-center text-sm text-neutral-600">
+                        No account?{" "}
+                        <Link href="/signup" className="text-neutral-400 hover:text-white transition-colors">Sign up</Link>
                     </p>
                 </div>
             </div>

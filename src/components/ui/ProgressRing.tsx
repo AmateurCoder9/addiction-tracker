@@ -13,8 +13,8 @@ export default function ProgressRing({
     percentage,
     size = 80,
     strokeWidth = 6,
-    color = "#10b981",
-    bgColor = "rgba(0,0,0,0.04)",
+    color = "#737373",
+    bgColor = "#f5f5f5",
     children,
 }: ProgressRingProps) {
     const radius = (size - strokeWidth) / 2;
@@ -24,36 +24,10 @@ export default function ProgressRing({
     return (
         <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
             <svg width={size} height={size} className="transform -rotate-90">
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    fill="none"
-                    stroke={bgColor}
-                    strokeWidth={strokeWidth}
-                />
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={strokeWidth}
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
-                    strokeLinecap="round"
-                    className="progress-ring-circle"
-                    style={
-                        {
-                            "--circumference": circumference,
-                            "--offset": offset,
-                        } as React.CSSProperties
-                    }
-                />
+                <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={bgColor} strokeWidth={strokeWidth} />
+                <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="progress-ring-circle" />
             </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-                {children}
-            </div>
+            <div className="absolute inset-0 flex items-center justify-center">{children}</div>
         </div>
     );
 }

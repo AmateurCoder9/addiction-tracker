@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import Footer from "@/components/layout/Footer";
 
 export default function SignupPage() {
     const [email, setEmail] = useState("");
@@ -13,6 +12,7 @@ export default function SignupPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [guestLoading, setGuestLoading] = useState(false);
     const router = useRouter();
     const supabase = createClient();
 
@@ -45,67 +45,86 @@ export default function SignupPage() {
         setLoading(false);
     }
 
+    async function handleGuestMode() {
+        setGuestLoading(true);
+        const { error: authError } = await supabase.auth.signInAnonymously();
+        if (authError) {
+            setError(authError.message);
+            setGuestLoading(false);
+            return;
+        }
+        router.push("/dashboard");
+        router.refresh();
+    }
+
     return (
-        <div className="min-h-screen flex flex-col">
-            <div className="fixed inset-0 -z-10">
-                <div className="absolute inset-0 bg-gradient-to-br from-green-50 via-cyan-50 to-sky-50" />
-                <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-gradient-to-b from-sky-200/25 via-emerald-200/10 to-transparent rounded-full blur-3xl" />
-            </div>
+        <div className="min-h-screen section-dark flex flex-col items-center justify-center px-6">
+            <div className="glow-blue" style={{ top: "15%", right: "25%", opacity: 0.4 }} />
+            <div className="glow-purple" style={{ bottom: "15%", left: "20%", opacity: 0.3 }} />
 
-            <div className="flex-1 flex items-center justify-center px-4 py-12">
-                <div className="w-full max-w-md animate-slide-up">
-                    <div className="text-center mb-8">
-                        <div className="text-5xl mb-4">🛡️</div>
-                        <h1 className="text-3xl font-bold gradient-text">AddictionTracker</h1>
-                        <p className="text-gray-500 mt-2 text-sm">Start your recovery journey today.</p>
-                    </div>
+            <div className="relative z-10 w-full max-w-md animate-slide-up">
+                <div className="text-center mb-8">
+                    <Link href="/" className="inline-block">
+                        <span className="text-5xl mb-4 block">🛡️</span>
+                        <h1 className="text-3xl font-bold gradient-text-hero">AddictionTracker</h1>
+                    </Link>
+                    <p className="text-gray-500 mt-2 text-sm">Start your recovery journey today.</p>
+                </div>
 
-                    <div className="glass-card p-8">
-                        {success ? (
-                            <div className="text-center animate-fade-in">
-                                <div className="text-5xl mb-4">✅</div>
-                                <h2 className="text-xl font-semibold text-gray-800 mb-2">Check Your Email</h2>
-                                <p className="text-gray-500 text-sm mb-6">
-                                    We&apos;ve sent a confirmation link to <span className="text-emerald-600 font-medium">{email}</span>.
-                                </p>
-                                <button onClick={() => router.push("/login")} className="btn-primary">Go to Login</button>
+                <div className="glass-card-dark p-8 border border-white/10">
+                    {success ? (
+                        <div className="text-center animate-fade-in">
+                            <div className="text-5xl mb-4">✅</div>
+                            <h2 className="text-xl font-semibold text-white mb-2">Check Your Email</h2>
+                            <p className="text-gray-400 text-sm mb-6">
+                                We&apos;ve sent a confirmation link to <span className="text-emerald-400 font-medium">{email}</span>.
+                            </p>
+                            <Link href="/login" className="btn-primary inline-block">Go to Login</Link>
+                        </div>
+                    ) : (
+                        <>
+                            <h2 className="text-xl font-semibold text-white mb-6">Create Account</h2>
+
+                            {error && (
+                                <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm animate-fade-in">{error}</div>
+                            )}
+
+                            <form onSubmit={handleSignup} className="space-y-4">
+                                <div>
+                                    <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-1.5">Email</label>
+                                    <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field input-dark" placeholder="you@example.com" required autoComplete="email" />
+                                </div>
+                                <div>
+                                    <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-1.5">Password</label>
+                                    <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input-field input-dark" placeholder="Min 6 characters" required autoComplete="new-password" />
+                                </div>
+                                <div>
+                                    <label htmlFor="confirm" className="block text-sm font-medium text-gray-400 mb-1.5">Confirm Password</label>
+                                    <input id="confirm" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="input-field input-dark" placeholder="Repeat password" required autoComplete="new-password" />
+                                </div>
+                                <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2 py-3">
+                                    {loading ? (<><span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creating...</>) : "Create Account"}
+                                </button>
+                            </form>
+
+                            <div className="mt-4 flex items-center gap-3">
+                                <div className="flex-1 h-px bg-white/10" />
+                                <span className="text-xs text-gray-600">or</span>
+                                <div className="flex-1 h-px bg-white/10" />
                             </div>
-                        ) : (
-                            <>
-                                <h2 className="text-xl font-semibold text-gray-800 mb-6">Create Account</h2>
 
-                                {error && (
-                                    <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm animate-fade-in">{error}</div>
-                                )}
+                            <button onClick={handleGuestMode} disabled={guestLoading} className="mt-4 btn-secondary w-full py-3 text-sm">
+                                {guestLoading ? "Loading..." : "👤 Continue as Guest"}
+                            </button>
 
-                                <form onSubmit={handleSignup} className="space-y-4">
-                                    <div>
-                                        <label htmlFor="email" className="block text-sm font-medium text-gray-600 mb-1.5">Email</label>
-                                        <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" placeholder="you@example.com" required autoComplete="email" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="password" className="block text-sm font-medium text-gray-600 mb-1.5">Password</label>
-                                        <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input-field" placeholder="Min 6 characters" required autoComplete="new-password" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-600 mb-1.5">Confirm Password</label>
-                                        <input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="input-field" placeholder="Repeat your password" required autoComplete="new-password" />
-                                    </div>
-                                    <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
-                                        {loading ? (<><span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creating account...</>) : "Create Account"}
-                                    </button>
-                                </form>
-
-                                <p className="mt-6 text-center text-sm text-gray-500">
-                                    Already have an account?{" "}
-                                    <Link href="/login" className="text-emerald-600 hover:text-emerald-500 font-medium transition-colors">Sign In</Link>
-                                </p>
-                            </>
-                        )}
-                    </div>
+                            <p className="mt-6 text-center text-sm text-gray-500">
+                                Already have an account?{" "}
+                                <Link href="/login" className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">Sign In</Link>
+                            </p>
+                        </>
+                    )}
                 </div>
             </div>
-            <Footer />
         </div>
     );
 }

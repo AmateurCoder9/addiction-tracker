@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { signInWithEmailAndPassword, signInAnonymously } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -17,16 +18,12 @@ export default function LoginPage() {
         e.preventDefault();
         setError(null);
         setLoading(true);
-
         try {
-            const supabase = createClient();
-            const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-            if (authError) { setError(authError.message); setLoading(false); return; }
+            await signInWithEmailAndPassword(auth, email, password);
             router.push("/dashboard");
-            router.refresh();
-        } catch (err) {
-            console.error("Login error:", err);
-            setError("Connection failed. Please check your internet or try again later.");
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Login failed";
+            setError(msg.replace("Firebase: ", "").replace(/\(auth\/.*\)/, "").trim());
             setLoading(false);
         }
     }
@@ -35,14 +32,11 @@ export default function LoginPage() {
         setGuestLoading(true);
         setError(null);
         try {
-            const supabase = createClient();
-            const { error: authError } = await supabase.auth.signInAnonymously();
-            if (authError) { setError(authError.message); setGuestLoading(false); return; }
+            await signInAnonymously(auth);
             router.push("/dashboard");
-            router.refresh();
-        } catch (err) {
-            console.error("Guest login error:", err);
-            setError("Connection failed. Please check your internet or try again later.");
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Guest login failed";
+            setError(msg.replace("Firebase: ", "").replace(/\(auth\/.*\)/, "").trim());
             setGuestLoading(false);
         }
     }
@@ -51,9 +45,7 @@ export default function LoginPage() {
         <div className="min-h-screen bg-black flex items-center justify-center px-6">
             <div className="w-full max-w-sm animate-slide-up">
                 <div className="text-center mb-10">
-                    <Link href="/">
-                        <h1 className="text-2xl font-semibold text-white tracking-tight">AddictionTracker</h1>
-                    </Link>
+                    <h1 className="text-2xl font-semibold text-white tracking-tight">AddictionTracker</h1>
                     <p className="text-neutral-600 mt-2 text-sm">Sign in to continue</p>
                 </div>
 

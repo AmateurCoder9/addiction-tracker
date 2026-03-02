@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { collection, query, where, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import { calculateStreaks, isMilestoneStreak, getMilestoneMessage } from "@/lib/streaks";
 import { getQuoteOfTheDay } from "@/lib/quotes";
 import { fireConfetti } from "@/lib/confetti";
@@ -30,6 +32,7 @@ function AnimatedStat({ value, label }: { value: number; label: string }) {
 
 export default function DashboardPage() {
     const router = useRouter();
+    const [userId, setUserId] = useState<string | null>(null);
     const [addictions, setAddictions] = useState<Addiction[]>([]);
     const [logsMap, setLogsMap] = useState<Record<string, Log[]>>({});
     const [loading, setLoading] = useState(true);
@@ -42,7 +45,6 @@ export default function DashboardPage() {
     const [activeSection, setActiveSection] = useState("today");
     const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
     const [loggingOut, setLoggingOut] = useState(false);
-    const supabaseRef = useRef(createClient());
 
     const todayRef = useRef<HTMLDivElement>(null);
     const trackersRef = useRef<HTMLDivElement>(null);
@@ -51,63 +53,66 @@ export default function DashboardPage() {
 
     useScrollRevealAll();
 
+    // Auth listener
     useEffect(() => {
+        const unsub = onAuthStateChanged(auth, (user) => {
+            if (user) { setUserId(user.uid); }
+            else { router.push("/login"); }
+        });
+        return () => unsub();
+    }, [router]);
+
+    // Load data
+    useEffect(() => {
+        if (!userId) return;
         let cancelled = false;
-        const supabase = supabaseRef.current;
-        const timeout = setTimeout(() => {
-            if (!cancelled) { setLoading(false); setError("Connection timed out. Please refresh."); }
-        }, 15000);
 
         async function load() {
             try {
-                const { data: { user }, error: userErr } = await supabase.auth.getUser();
-                if (userErr) { setError("Authentication error. Please log in again."); setLoading(false); clearTimeout(timeout); return; }
-                if (!user || cancelled) { setLoading(false); clearTimeout(timeout); return; }
-
-                const { data: addictionsData, error: addErr } = await supabase.from("addictions").select("*").eq("user_id", user.id).order("created_at", { ascending: true });
+                // Fetch addictions
+                const addQ = query(collection(db, "addictions"), where("user_id", "==", userId), orderBy("created_at", "asc"));
+                const addSnap = await getDocs(addQ);
                 if (cancelled) return;
-                if (addErr) { setError("Could not load trackers: " + addErr.message); setLoading(false); clearTimeout(timeout); return; }
+                const addData: Addiction[] = addSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Addiction));
+                setAddictions(addData);
+                if (addData.length > 0) setSelectedTracker((prev) => prev ?? addData[0].id);
 
-                setAddictions(addictionsData || []);
-                if (addictionsData && addictionsData.length > 0) setSelectedTracker((prev) => prev ?? addictionsData[0].id);
-
-                const { data: logsData, error: logErr } = await supabase.from("logs").select("*").eq("user_id", user.id).order("date", { ascending: true });
+                // Fetch logs
+                const logQ = query(collection(db, "logs"), where("user_id", "==", userId), orderBy("date", "asc"));
+                const logSnap = await getDocs(logQ);
                 if (cancelled) return;
-                if (logErr) console.error("Fetch logs error:", logErr);
+                const grouped: Record<string, Log[]> = {};
+                for (const d of logSnap.docs) {
+                    const log = { id: d.id, ...d.data() } as Log;
+                    if (!grouped[log.addiction_id]) grouped[log.addiction_id] = [];
+                    grouped[log.addiction_id].push(log);
+                }
+                setLogsMap(grouped);
 
-                if (logsData) {
-                    const grouped: Record<string, Log[]> = {};
-                    for (const log of logsData) {
-                        if (!grouped[log.addiction_id]) grouped[log.addiction_id] = [];
-                        grouped[log.addiction_id].push(log);
-                    }
-                    setLogsMap(grouped);
-
-                    if (addictionsData) {
-                        for (const addiction of addictionsData) {
-                            const streakData = calculateStreaks(grouped[addiction.id] || []);
-                            if (isMilestoneStreak(streakData.currentStreak)) {
-                                setMilestoneMessage(getMilestoneMessage(streakData.currentStreak));
-                                try { fireConfetti(); } catch (e) { console.error(e); }
-                                break;
-                            }
-                        }
+                // Check milestones
+                for (const addiction of addData) {
+                    const streakData = calculateStreaks(grouped[addiction.id] || []);
+                    if (isMilestoneStreak(streakData.currentStreak)) {
+                        setMilestoneMessage(getMilestoneMessage(streakData.currentStreak));
+                        try { fireConfetti(); } catch (e) { console.error(e); }
+                        break;
                     }
                 }
             } catch (err) {
-                console.error("Dashboard load error:", err);
-                setError("Connection failed. Please refresh.");
+                console.error("Load error:", err);
+                setError("Failed to load data. Please refresh.");
             }
-            if (!cancelled) { setLoading(false); clearTimeout(timeout); }
+            if (!cancelled) setLoading(false);
         }
 
+        setLoading(true);
         load();
-        return () => { cancelled = true; clearTimeout(timeout); };
-    }, [refreshKey]);
+        return () => { cancelled = true; };
+    }, [userId, refreshKey]);
 
     async function handleLogout() {
         setLoggingOut(true);
-        try { await supabaseRef.current.auth.signOut(); } catch (e) { console.error(e); }
+        try { await signOut(auth); } catch (e) { console.error(e); }
         router.push("/login");
     }
 
@@ -118,59 +123,53 @@ export default function DashboardPage() {
     }, []);
 
     async function handleAddAddiction(name: string) {
+        if (!userId) return;
         try {
-            const supabase = supabaseRef.current;
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-            const { error: err } = await supabase.from("addictions").insert({ user_id: user.id, name });
-            if (err) { setError("Failed to add: " + err.message); return; }
+            await addDoc(collection(db, "addictions"), { user_id: userId, name, created_at: new Date().toISOString() });
             setRefreshKey((k) => k + 1);
         } catch (e) { setError("Failed to add tracker."); console.error(e); }
     }
 
     async function handleDeleteAddiction(id: string) {
         try {
-            const supabase = supabaseRef.current;
             setDeletingId(id);
-            await supabase.from("logs").delete().eq("addiction_id", id);
-            const { error: err } = await supabase.from("addictions").delete().eq("id", id);
-            if (!err) {
-                setAddictions((prev) => prev.filter((a) => a.id !== id));
-                setLogsMap((prev) => { const next = { ...prev }; delete next[id]; return next; });
-                if (selectedTracker === id) setSelectedTracker(addictions[0]?.id ?? null);
-            }
+            // Delete logs for this addiction
+            const logQ = query(collection(db, "logs"), where("addiction_id", "==", id));
+            const logSnap = await getDocs(logQ);
+            for (const d of logSnap.docs) await deleteDoc(doc(db, "logs", d.id));
+            // Delete addiction
+            await deleteDoc(doc(db, "addictions", id));
+            setAddictions((prev) => prev.filter((a) => a.id !== id));
+            setLogsMap((prev) => { const next = { ...prev }; delete next[id]; return next; });
+            if (selectedTracker === id) setSelectedTracker(addictions[0]?.id ?? null);
         } catch (e) { console.error(e); }
         setDeletingId(null);
     }
 
     async function handleQuickLog(status: "clean" | "relapse" | "partial", note: string, cost: number) {
-        if (!quickLogId) return;
+        if (!quickLogId || !userId) return;
         try {
-            const supabase = supabaseRef.current;
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
             const todayStr = format(new Date(), "yyyy-MM-dd");
             const existing = (logsMap[quickLogId] || []).find((l) => l.date === todayStr);
-            const logData: Record<string, unknown> = { status, note: note || null };
-            if (cost > 0) logData.cost = cost;
-            if (existing) { await supabase.from("logs").update(logData).eq("id", existing.id); }
-            else { await supabase.from("logs").insert({ user_id: user.id, addiction_id: quickLogId, date: todayStr, ...logData }); }
+            if (existing) {
+                await updateDoc(doc(db, "logs", existing.id), { status, note: note || null, cost: cost || 0 });
+            } else {
+                await addDoc(collection(db, "logs"), { user_id: userId, addiction_id: quickLogId, date: todayStr, status, note: note || null, cost: cost || 0, created_at: new Date().toISOString() });
+            }
         } catch (e) { console.error("Log error:", e); }
         setQuickLogId(null);
         setRefreshKey((k) => k + 1);
     }
 
     async function handleCalendarLog(date: string, status: "clean" | "relapse" | "partial", note: string, cost: number) {
-        if (!selectedTracker) return;
+        if (!selectedTracker || !userId) return;
         try {
-            const supabase = supabaseRef.current;
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
             const existing = (logsMap[selectedTracker] || []).find((l) => l.date === date);
-            const logData: Record<string, unknown> = { status, note: note || null };
-            if (cost > 0) logData.cost = cost;
-            if (existing) { await supabase.from("logs").update(logData).eq("id", existing.id); }
-            else { await supabase.from("logs").insert({ user_id: user.id, addiction_id: selectedTracker, date, ...logData }); }
+            if (existing) {
+                await updateDoc(doc(db, "logs", existing.id), { status, note: note || null, cost: cost || 0 });
+            } else {
+                await addDoc(collection(db, "logs"), { user_id: userId, addiction_id: selectedTracker, date, status, note: note || null, cost: cost || 0, created_at: new Date().toISOString() });
+            }
         } catch (e) { console.error("Calendar log error:", e); }
         setRefreshKey((k) => k + 1);
     }
@@ -188,9 +187,6 @@ export default function DashboardPage() {
             <div className="min-h-screen bg-black flex flex-col items-center justify-center">
                 <div className="w-5 h-5 border border-neutral-700 border-t-neutral-400 rounded-full animate-spin" />
                 <p className="mt-4 text-xs text-neutral-600">Loading...</p>
-                <button onClick={() => { setLoading(false); setError("Manually skipped."); }} className="mt-6 text-xs text-neutral-700 underline hover:text-neutral-500">
-                    Taking too long? Click here
-                </button>
             </div>
         );
     }
@@ -199,7 +195,6 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-black text-white">
-            {/* Top bar */}
             <nav className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-neutral-900">
                 <div className="mx-auto max-w-5xl px-4 sm:px-6 flex h-12 items-center justify-between">
                     <span className="text-sm font-semibold tracking-tight">AddictionTracker</span>
@@ -210,30 +205,27 @@ export default function DashboardPage() {
             </nav>
 
             <div className="mx-auto max-w-5xl px-4 sm:px-6">
-                {/* Error */}
                 {error && (
                     <div className="mt-6 p-4 rounded-lg bg-neutral-900 border border-neutral-800 animate-fade-in">
                         <div className="flex items-center justify-between">
                             <p className="text-sm text-neutral-400">{error}</p>
                             <div className="flex items-center gap-3">
-                                <button onClick={() => { setError(null); setLoading(true); setRefreshKey((k) => k + 1); }} className="text-xs text-neutral-500 underline">Retry</button>
+                                <button onClick={() => { setError(null); setRefreshKey((k) => k + 1); }} className="text-xs text-neutral-500 underline">Retry</button>
                                 <button onClick={() => setError(null)} className="text-neutral-600 hover:text-neutral-400">&times;</button>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* ===== HERO / TODAY ===== */}
+                {/* HERO */}
                 <section ref={todayRef} id="today" className="min-h-[70vh] flex flex-col justify-center py-20 scroll-mt-12">
                     <div className="animate-fade-in">
                         <h1 className="text-5xl sm:text-7xl font-semibold tracking-tight leading-[0.9]">{greeting}.</h1>
                         <p className="mt-4 text-sm text-neutral-600">{format(new Date(), "EEEE, MMMM d, yyyy")}</p>
                     </div>
-
                     <div className="mt-12 animate-fade-in" style={{ animationDelay: "200ms", animationFillMode: "both" }}>
                         <p className="text-neutral-500 text-sm italic max-w-md">&ldquo;{quote}&rdquo;</p>
                     </div>
-
                     {milestoneMessage && (
                         <div className="mt-6 p-4 rounded-lg bg-neutral-900 border border-neutral-800 animate-fade-in max-w-md">
                             <div className="flex items-center justify-between">
@@ -242,7 +234,6 @@ export default function DashboardPage() {
                             </div>
                         </div>
                     )}
-
                     {addictions.length > 0 && (
                         <div className="mt-16 scroll-reveal" style={{ transitionDelay: "300ms" }}>
                             <p className="text-xs text-neutral-600 uppercase tracking-[0.2em] mb-4">Log today</p>
@@ -273,8 +264,6 @@ export default function DashboardPage() {
                             </div>
                         </div>
                     )}
-
-                    {/* Scroll indicator */}
                     <div className="mt-20 flex justify-center animate-bounce-arrow">
                         <svg className="w-5 h-5 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 14l-7 7m0 0l-7-7" />
@@ -282,13 +271,12 @@ export default function DashboardPage() {
                     </div>
                 </section>
 
-                {/* ===== TRACKERS ===== */}
+                {/* TRACKERS */}
                 <section ref={trackersRef} id="trackers" className="min-h-screen py-24 border-t border-neutral-900 scroll-mt-12">
                     <div className="scroll-reveal">
                         <p className="text-xs text-neutral-600 uppercase tracking-[0.2em] mb-2">Your trackers</p>
                         <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight">{addictions.length} tracked.</h2>
                     </div>
-
                     {addictions.length === 0 ? (
                         <div className="mt-16 text-center animate-fade-in">
                             <p className="text-lg text-neutral-400 mb-2">No trackers yet.</p>
@@ -320,15 +308,10 @@ export default function DashboardPage() {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <button onClick={(e) => { e.stopPropagation(); setQuickLogId(addiction.id); }}
-                                                    className="px-3 py-1.5 rounded text-xs text-neutral-400 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 transition-colors">
-                                                    Log
-                                                </button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteAddiction(addiction.id); }}
-                                                    disabled={deletingId === addiction.id}
+                                                    className="px-3 py-1.5 rounded text-xs text-neutral-400 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 transition-colors">Log</button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteAddiction(addiction.id); }} disabled={deletingId === addiction.id}
                                                     className="p-1.5 rounded text-neutral-700 hover:text-neutral-400 transition-colors disabled:opacity-30">
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" /></svg>
                                                 </button>
                                             </div>
                                         </div>
@@ -337,13 +320,10 @@ export default function DashboardPage() {
                             })}
                         </div>
                     )}
-
-                    <div className="mt-6 scroll-reveal">
-                        <AddAddictionForm onAdd={handleAddAddiction} />
-                    </div>
+                    <div className="mt-6 scroll-reveal"><AddAddictionForm onAdd={handleAddAddiction} /></div>
                 </section>
 
-                {/* ===== CALENDAR ===== */}
+                {/* CALENDAR */}
                 {selectedTracker && (
                     <section ref={calendarRef} id="calendar" className="min-h-screen py-24 border-t border-neutral-900 scroll-mt-12">
                         <div className="scroll-reveal flex items-center justify-between mb-8">
@@ -369,7 +349,7 @@ export default function DashboardPage() {
                     </section>
                 )}
 
-                {/* ===== STATS ===== */}
+                {/* STATS */}
                 {selectedTracker && selectedLogs.length > 0 && (
                     <section ref={statsRef} id="stats" className="min-h-screen py-24 border-t border-neutral-900 scroll-mt-12">
                         <div className="scroll-reveal">
@@ -377,7 +357,6 @@ export default function DashboardPage() {
                             <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight">See your progress.</h2>
                             <p className="text-sm text-neutral-600 mt-2">{selectedName}</p>
                         </div>
-
                         <div className="mt-12 p-8 rounded-lg bg-neutral-950 border border-neutral-800 scroll-reveal" style={{ transitionDelay: "100ms" }}>
                             <div className="grid grid-cols-5 gap-6">
                                 <AnimatedStat value={selectedStreaks.currentStreak} label="Current" />
@@ -387,20 +366,17 @@ export default function DashboardPage() {
                                 <AnimatedStat value={Math.round(selectedStreaks.totalCost)} label="Spent" />
                             </div>
                         </div>
-
                         {selectedStreaks.monthlySummary.length > 0 && (
                             <>
                                 <div className="mt-6 p-6 rounded-lg bg-neutral-950 border border-neutral-800 scroll-reveal overflow-x-auto" style={{ transitionDelay: "200ms" }}>
                                     <table className="w-full text-xs">
-                                        <thead>
-                                            <tr className="border-b border-neutral-800">
-                                                <th className="text-left py-2 text-neutral-500 font-medium">Month</th>
-                                                <th className="text-center py-2 text-neutral-500 font-medium">Clean</th>
-                                                <th className="text-center py-2 text-neutral-500 font-medium">Relapse</th>
-                                                <th className="text-center py-2 text-neutral-500 font-medium">Partial</th>
-                                                <th className="text-center py-2 text-neutral-500 font-medium">Cost</th>
-                                            </tr>
-                                        </thead>
+                                        <thead><tr className="border-b border-neutral-800">
+                                            <th className="text-left py-2 text-neutral-500 font-medium">Month</th>
+                                            <th className="text-center py-2 text-neutral-500 font-medium">Clean</th>
+                                            <th className="text-center py-2 text-neutral-500 font-medium">Relapse</th>
+                                            <th className="text-center py-2 text-neutral-500 font-medium">Partial</th>
+                                            <th className="text-center py-2 text-neutral-500 font-medium">Cost</th>
+                                        </tr></thead>
                                         <tbody>
                                             {selectedStreaks.monthlySummary.map((m) => (
                                                 <tr key={`${m.month}-${m.year}`} className="border-b border-neutral-900 last:border-0">
@@ -414,20 +390,17 @@ export default function DashboardPage() {
                                         </tbody>
                                     </table>
                                 </div>
-
                                 <div className="mt-6 scroll-reveal" style={{ transitionDelay: "300ms" }}>
                                     <StatsCharts monthlySummary={selectedStreaks.monthlySummary} addictionName={selectedName} />
                                 </div>
                             </>
                         )}
-
                         <div className="mt-6 scroll-reveal" style={{ transitionDelay: "400ms" }}>
                             <HeatmapGrid logs={selectedLogs} />
                         </div>
                     </section>
                 )}
 
-                {/* Footer */}
                 <footer className="border-t border-neutral-900 py-8 text-center">
                     <p className="text-xs text-neutral-800">Built by Vedant Kapadia</p>
                 </footer>
@@ -436,16 +409,11 @@ export default function DashboardPage() {
             <BottomNav activeSection={activeSection} onNavigate={handleNavigate} />
 
             {quickLogId && (
-                <LogModal
-                    date={todayStr}
-                    existingLog={
-                        (logsMap[quickLogId] || []).find((l) => l.date === todayStr)
-                            ? { date: todayStr, status: (logsMap[quickLogId] || []).find((l) => l.date === todayStr)!.status, note: (logsMap[quickLogId] || []).find((l) => l.date === todayStr)!.note, cost: Number((logsMap[quickLogId] || []).find((l) => l.date === todayStr)!.cost) || 0 }
-                            : null
-                    }
-                    onSave={handleQuickLog}
-                    onClose={() => setQuickLogId(null)}
-                />
+                <LogModal date={todayStr}
+                    existingLog={(logsMap[quickLogId] || []).find((l) => l.date === todayStr)
+                        ? { date: todayStr, status: (logsMap[quickLogId] || []).find((l) => l.date === todayStr)!.status, note: (logsMap[quickLogId] || []).find((l) => l.date === todayStr)!.note, cost: Number((logsMap[quickLogId] || []).find((l) => l.date === todayStr)!.cost) || 0 }
+                        : null}
+                    onSave={handleQuickLog} onClose={() => setQuickLogId(null)} />
             )}
         </div>
     );

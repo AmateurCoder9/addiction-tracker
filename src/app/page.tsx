@@ -2,26 +2,17 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function RootPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const supabase = createClient();
-
-    // Timeout: if Supabase doesn't respond in 5s, go to login
-    const timeout = setTimeout(() => { router.push("/login"); }, 5000);
-
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      clearTimeout(timeout);
+    const unsub = onAuthStateChanged(auth, (user) => {
       router.push(user ? "/dashboard" : "/login");
-    }).catch(() => {
-      clearTimeout(timeout);
-      router.push("/login");
     });
-
-    return () => clearTimeout(timeout);
+    return () => unsub();
   }, [router]);
 
   return (

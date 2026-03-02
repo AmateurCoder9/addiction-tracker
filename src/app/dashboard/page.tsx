@@ -225,12 +225,12 @@ export default function DashboardPage() {
 
                 {/* ===== HERO / TODAY ===== */}
                 <section ref={todayRef} id="today" className="min-h-[70vh] flex flex-col justify-center py-20 scroll-mt-12">
-                    <div className="scroll-reveal">
+                    <div className="animate-fade-in">
                         <h1 className="text-5xl sm:text-7xl font-semibold tracking-tight leading-[0.9]">{greeting}.</h1>
                         <p className="mt-4 text-sm text-neutral-600">{format(new Date(), "EEEE, MMMM d, yyyy")}</p>
                     </div>
 
-                    <div className="mt-12 scroll-reveal" style={{ transitionDelay: "150ms" }}>
+                    <div className="mt-12 animate-fade-in" style={{ animationDelay: "200ms", animationFillMode: "both" }}>
                         <p className="text-neutral-500 text-sm italic max-w-md">&ldquo;{quote}&rdquo;</p>
                     </div>
 
@@ -290,9 +290,9 @@ export default function DashboardPage() {
                     </div>
 
                     {addictions.length === 0 ? (
-                        <div className="mt-16 text-center scroll-reveal">
-                            <p className="text-neutral-500 mb-2">No trackers yet.</p>
-                            <p className="text-sm text-neutral-700">Add something you want to overcome.</p>
+                        <div className="mt-16 text-center animate-fade-in">
+                            <p className="text-lg text-neutral-400 mb-2">No trackers yet.</p>
+                            <p className="text-sm text-neutral-600 mb-8">Add something you want to overcome.</p>
                         </div>
                     ) : (
                         <div className="mt-12 space-y-3">

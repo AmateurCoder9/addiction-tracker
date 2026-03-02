@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { calculateStreaks, isMilestoneStreak } from "@/lib/streaks";
 import { fireConfetti } from "@/lib/confetti";
@@ -35,15 +35,15 @@ export default function AddictionDetailPage() {
         let cancelled = false;
         async function load() {
             try {
-                const addDoc = await getDoc(doc(db, "addictions", id));
+                const addictionDoc = await getDoc(doc(db, "addictions", id));
                 if (cancelled) return;
-                if (!addDoc.exists() || addDoc.data().user_id !== userId) { router.push("/dashboard"); return; }
-                setAddiction({ id: addDoc.id, ...addDoc.data() } as Addiction);
+                if (!addictionDoc.exists() || addictionDoc.data().user_id !== userId) { router.push("/dashboard"); return; }
+                setAddiction({ id: addictionDoc.id, ...addictionDoc.data() } as Addiction);
 
-                const logQ = query(collection(db, "logs"), where("addiction_id", "==", id), where("user_id", "==", userId), orderBy("date", "asc"));
+                const logQ = query(collection(db, "logs"), where("addiction_id", "==", id), where("user_id", "==", userId));
                 const logSnap = await getDocs(logQ);
                 if (cancelled) return;
-                setLogs(logSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Log)));
+                setLogs(logSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Log)).sort((a, b) => a.date.localeCompare(b.date)));
             } catch (e) { console.error(e); }
             setLoading(false);
         }

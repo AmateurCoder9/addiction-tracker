@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { calculateStreaks } from "@/lib/streaks";
 import type { Addiction, Log } from "@/lib/types";
@@ -32,14 +32,14 @@ export default function StatsPage() {
         let cancelled = false;
         async function load() {
             try {
-                const addQ = query(collection(db, "addictions"), where("user_id", "==", userId), orderBy("created_at", "asc"));
+                const addQ = query(collection(db, "addictions"), where("user_id", "==", userId));
                 const addSnap = await getDocs(addQ);
                 if (cancelled) return;
-                const addData = addSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Addiction));
+                const addData = addSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Addiction)).sort((a, b) => a.created_at.localeCompare(b.created_at));
                 setAddictions(addData);
                 if (addData.length > 0) setSelectedAddiction((prev) => prev ?? addData[0].id);
 
-                const logQ = query(collection(db, "logs"), where("user_id", "==", userId), orderBy("date", "asc"));
+                const logQ = query(collection(db, "logs"), where("user_id", "==", userId));
                 const logSnap = await getDocs(logQ);
                 if (cancelled) return;
                 const grouped: Record<string, Log[]> = {};
@@ -48,6 +48,7 @@ export default function StatsPage() {
                     if (!grouped[log.addiction_id]) grouped[log.addiction_id] = [];
                     grouped[log.addiction_id].push(log);
                 }
+                for (const key of Object.keys(grouped)) grouped[key].sort((a, b) => a.date.localeCompare(b.date));
                 setLogsMap(grouped);
             } catch (e) { console.error(e); }
             setLoading(false);

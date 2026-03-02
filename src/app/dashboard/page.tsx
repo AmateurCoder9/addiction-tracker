@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, query, where, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { calculateStreaks, isMilestoneStreak, getMilestoneMessage } from "@/lib/streaks";
 import { getQuoteOfTheDay } from "@/lib/quotes";
@@ -70,15 +70,15 @@ export default function DashboardPage() {
         async function load() {
             try {
                 // Fetch addictions
-                const addQ = query(collection(db, "addictions"), where("user_id", "==", userId), orderBy("created_at", "asc"));
+                const addQ = query(collection(db, "addictions"), where("user_id", "==", userId));
                 const addSnap = await getDocs(addQ);
                 if (cancelled) return;
-                const addData: Addiction[] = addSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Addiction));
+                const addData: Addiction[] = addSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Addiction)).sort((a, b) => a.created_at.localeCompare(b.created_at));
                 setAddictions(addData);
                 if (addData.length > 0) setSelectedTracker((prev) => prev ?? addData[0].id);
 
                 // Fetch logs
-                const logQ = query(collection(db, "logs"), where("user_id", "==", userId), orderBy("date", "asc"));
+                const logQ = query(collection(db, "logs"), where("user_id", "==", userId));
                 const logSnap = await getDocs(logQ);
                 if (cancelled) return;
                 const grouped: Record<string, Log[]> = {};
@@ -87,6 +87,8 @@ export default function DashboardPage() {
                     if (!grouped[log.addiction_id]) grouped[log.addiction_id] = [];
                     grouped[log.addiction_id].push(log);
                 }
+                // Sort logs by date client-side
+                for (const key of Object.keys(grouped)) grouped[key].sort((a, b) => a.date.localeCompare(b.date));
                 setLogsMap(grouped);
 
                 // Check milestones

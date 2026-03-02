@@ -9,11 +9,19 @@ export default function RootPage() {
 
   useEffect(() => {
     const supabase = createClient();
+
+    // Timeout: if Supabase doesn't respond in 5s, go to login
+    const timeout = setTimeout(() => { router.push("/login"); }, 5000);
+
     supabase.auth.getUser().then(({ data: { user } }) => {
+      clearTimeout(timeout);
       router.push(user ? "/dashboard" : "/login");
     }).catch(() => {
+      clearTimeout(timeout);
       router.push("/login");
     });
+
+    return () => clearTimeout(timeout);
   }, [router]);
 
   return (

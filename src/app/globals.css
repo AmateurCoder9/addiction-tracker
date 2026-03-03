@@ -8,10 +8,100 @@ body {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #fafafa;
-  color: #171717;
+  background: #000;
+  color: #e5e5e5;
   min-height: 100vh;
   overflow-x: hidden;
+  position: relative;
+}
+
+/* ===== Futuristic Background Layers ===== */
+
+/* Layer 1: Animated gradient orbs */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -100px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 800px 800px at 10% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 600px 600px at 90% 25%, rgba(168, 85, 247, 0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 900px 500px at 50% 85%, rgba(20, 184, 166, 0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 500px at 75% 55%, rgba(244, 63, 94, 0.05) 0%, transparent 70%),
+    radial-gradient(ellipse 400px 400px at 30% 60%, rgba(99, 102, 241, 0.04) 0%, transparent 70%);
+  animation: orbDrift 20s ease-in-out infinite alternate;
+}
+
+/* Layer 2: Dot grid pattern */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 30%, transparent 100%);
+}
+
+/* Noise texture overlay via a dedicated element in layout */
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* Vignette effect */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 70% 60% at 50% 50%, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
+}
+
+/* Subtle horizontal scan line */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 255, 255, 0.008) 2px,
+      rgba(255, 255, 255, 0.008) 4px);
+}
+
+/* Ensure all page content sits above the backgrounds */
+body>* {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes orbDrift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate(30px, -20px) scale(1.05);
+  }
+
+  66% {
+    transform: translate(-20px, 15px) scale(0.97);
+  }
+
+  100% {
+    transform: translate(10px, -10px) scale(1.02);
+  }
 }
 
 /* ===== Cards ===== */
@@ -333,12 +423,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d4d4d4;
+  background: #333;
   border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a3a3a3;
+  background: #555;
 }
 
 @media (max-width: 768px) {

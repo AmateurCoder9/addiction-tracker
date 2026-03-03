@@ -28,7 +28,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <div className="noise-overlay" aria-hidden="true" />
+        <div className="vignette" aria-hidden="true" />
+        <div className="scanlines" aria-hidden="true" />
+        {children}
+      </body>
     </html>
   );
 }

@@ -25,11 +25,11 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 800px 800px at 10% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 70%),
-    radial-gradient(ellipse 600px 600px at 90% 25%, rgba(168, 85, 247, 0.07) 0%, transparent 70%),
-    radial-gradient(ellipse 900px 500px at 50% 85%, rgba(20, 184, 166, 0.06) 0%, transparent 70%),
-    radial-gradient(ellipse 500px 500px at 75% 55%, rgba(244, 63, 94, 0.05) 0%, transparent 70%),
-    radial-gradient(ellipse 400px 400px at 30% 60%, rgba(99, 102, 241, 0.04) 0%, transparent 70%);
+    radial-gradient(ellipse 900px 900px at 5% 10%, rgba(56, 189, 248, 0.22) 0%, transparent 65%),
+    radial-gradient(ellipse 700px 700px at 95% 20%, rgba(168, 85, 247, 0.18) 0%, transparent 65%),
+    radial-gradient(ellipse 1000px 600px at 50% 90%, rgba(20, 184, 166, 0.15) 0%, transparent 65%),
+    radial-gradient(ellipse 600px 600px at 80% 50%, rgba(244, 63, 94, 0.12) 0%, transparent 65%),
+    radial-gradient(ellipse 500px 500px at 25% 65%, rgba(99, 102, 241, 0.10) 0%, transparent 65%);
   animation: orbDrift 20s ease-in-out infinite alternate;
 }
 
@@ -40,8 +40,8 @@ body::after {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-image: radial-gradient(circle 1px, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 28px 28px;
   mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 30%, transparent 100%);
   -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 30%, transparent 100%);
 }
@@ -52,7 +52,7 @@ body::after {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.03;
+  opacity: 0.06;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 256px 256px;
@@ -64,7 +64,7 @@ body::after {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: radial-gradient(ellipse 70% 60% at 50% 50%, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
+  background: radial-gradient(ellipse 60% 55% at 50% 50%, transparent 35%, rgba(0, 0, 0, 0.65) 100%);
 }
 
 /* Subtle horizontal scan line */
@@ -76,8 +76,8 @@ body::after {
   background: repeating-linear-gradient(0deg,
       transparent,
       transparent 2px,
-      rgba(255, 255, 255, 0.008) 2px,
-      rgba(255, 255, 255, 0.008) 4px);
+      rgba(255, 255, 255, 0.02) 2px,
+      rgba(255, 255, 255, 0.02) 4px);
 }
 
 /* Ensure all page content sits above the backgrounds */

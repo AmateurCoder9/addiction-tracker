@@ -42,7 +42,7 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black flex items-center justify-center px-6">
+        <div className="min-h-screen flex items-center justify-center px-6">
             <div className="w-full max-w-sm animate-slide-up">
                 <div className="text-center mb-10">
                     <h1 className="text-2xl font-semibold text-white tracking-tight">AddictionTracker</h1>

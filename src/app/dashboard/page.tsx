@@ -186,7 +186,7 @@ export default function DashboardPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+            <div className="min-h-screen flex flex-col items-center justify-center">
                 <div className="w-5 h-5 border border-neutral-700 border-t-neutral-400 rounded-full animate-spin" />
                 <p className="mt-4 text-xs text-neutral-600">Loading...</p>
             </div>
@@ -196,7 +196,7 @@ export default function DashboardPage() {
     const quote = getQuoteOfTheDay();
 
     return (
-        <div className="min-h-screen bg-black text-white">
+        <div className="min-h-screen text-white">
             <nav className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-neutral-900">
                 <div className="mx-auto max-w-5xl px-4 sm:px-6 flex h-12 items-center justify-between">
                     <span className="text-sm font-semibold tracking-tight">AddictionTracker</span>

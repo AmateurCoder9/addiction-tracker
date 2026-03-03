@@ -75,7 +75,7 @@ export default function AddictionDetailPage() {
     const currentYear = new Date().getFullYear();
 
     return (
-        <div className="min-h-screen bg-black text-white p-6">
+        <div className="min-h-screen text-white p-6">
             <div className="max-w-5xl mx-auto space-y-8 animate-fade-in">
                 <div className="flex items-center gap-3">
                     <button onClick={() => router.push("/dashboard")} className="p-1.5 rounded text-neutral-500 hover:text-neutral-300 transition-colors">

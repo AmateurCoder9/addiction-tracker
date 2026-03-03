@@ -65,7 +65,7 @@ export default function StatsPage() {
 
     if (addictions.length === 0) {
         return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center animate-fade-in">
                     <h2 className="text-lg font-semibold text-neutral-300 mb-2">No Data Yet</h2>
                     <p className="text-neutral-500 text-sm">Start tracking to see statistics.</p>
@@ -75,7 +75,7 @@ export default function StatsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white p-6">
+        <div className="min-h-screen text-white p-6">
             <div className="max-w-5xl mx-auto space-y-8 animate-fade-in">
                 <div>
                     <h1 className="text-3xl font-semibold text-white">Statistics</h1>
